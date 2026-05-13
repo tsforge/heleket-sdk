@@ -1,0 +1,9 @@
+export const PAYMENT_CONTROLLER = 'payment' as const;
+
+export const PAYMENT_ROUTES = {
+  POST_CREATE: PAYMENT_CONTROLLER,
+  POST_INFO: `${PAYMENT_CONTROLLER}/info`,
+  POST_LIST: `${PAYMENT_CONTROLLER}/list`,
+  POST_SERVICES: `${PAYMENT_CONTROLLER}/services`,
+  POST_RESEND: `${PAYMENT_CONTROLLER}/resend`,
+} as const;

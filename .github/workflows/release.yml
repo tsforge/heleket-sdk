@@ -1,0 +1,108 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*' # v0.1.0
+      - '[0-9]*.*.*' # 0.1.0 (no `v` prefix)
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  notify-start:
+    name: Notify start
+    if: ${{ vars.TELEGRAM_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Telegram → start
+        uses: appleboy/telegram-action@v1.0.0
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            🏹 Publishing ${{ github.repository }} → npm
+            tag: ${{ github.ref_name }}
+            commit: ${{ github.sha }}
+            author: ${{ github.actor }}
+
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for npm provenance
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Verify tag matches package.json version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag '$GITHUB_REF_NAME' does not match package.json version '$PKG_VERSION'"
+            exit 1
+          fi
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  notify-success:
+    name: Notify success
+    needs: [publish]
+    if: ${{ success() && vars.TELEGRAM_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Telegram → success
+        uses: appleboy/telegram-action@v1.0.0
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            ✅ Published ${{ github.repository }}@${{ github.ref_name }}
+            commit: ${{ github.sha }}
+            run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  notify-failure:
+    name: Notify failure
+    needs: [publish]
+    if: ${{ failure() && vars.TELEGRAM_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Telegram → failure
+        uses: appleboy/telegram-action@v1.0.0
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            ❌ Failed to publish ${{ github.repository }}@${{ github.ref_name }}
+            run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
