@@ -127,11 +127,11 @@ if (res.isSuccess && res.data) {
 ## Install
 
 ```bash
-npm install heleket-sdk
+npm install @tsforge7/heleket-sdk
 # or
-pnpm add heleket-sdk
+pnpm add @tsforge7/heleket-sdk
 # or
-yarn add heleket-sdk
+yarn add @tsforge7/heleket-sdk
 ```
 
 Requirements: **Node.js 18+** (uses native `fetch` and `AbortSignal.timeout`).
@@ -161,7 +161,7 @@ You only need to pass the keys you actually use. Read-only payment integration? 
 ### 1. Create a payment
 
 ```ts
-import { HeleketClient } from 'heleket-sdk';
+import { HeleketClient } from '@tsforge7/heleket-sdk';
 
 const heleket = new HeleketClient({
   paymentKey: process.env.HELEKET_PAYMENT_KEY!,
@@ -208,7 +208,7 @@ const res = await heleket.payout.create({
 
 ```ts
 import express from 'express';
-import { HeleketClient } from 'heleket-sdk';
+import { HeleketClient } from '@tsforge7/heleket-sdk';
 
 const heleket = new HeleketClient({
   paymentKey: process.env.HELEKET_PAYMENT_KEY!,
@@ -234,7 +234,7 @@ The full happy path for an online checkout: customer hits "Pay", you redirect to
 
 ```ts
 import express from 'express';
-import { HeleketClient } from 'heleket-sdk';
+import { HeleketClient } from '@tsforge7/heleket-sdk';
 
 const heleket = new HeleketClient({
   merchantUuid: process.env.HELEKET_MERCHANT_UUID!,
@@ -386,7 +386,7 @@ These are the statuses you'll see in `res.data.status` (and in webhook `status`)
 > Always treat **`is_final: true`** as the only safe signal to commit to a state change. Anything else is in-flight and may still change.
 
 ```ts
-import { PaymentStatus, PayoutStatus } from 'heleket-sdk';
+import { PaymentStatus, PayoutStatus } from '@tsforge7/heleket-sdk';
 
 // IDE autocompletes all 14 statuses when typing 'p'..., 'c'..., etc:
 if (record.status === 'paid' || record.status === 'paid_over') {
@@ -488,7 +488,7 @@ if (existing.isSuccess) return existing.data!; // reuse
 Concrete recipes for each error code. All come back as `res.code` on `ICommandResponse<T>`.
 
 ```ts
-import { type ErrorCode } from 'heleket-sdk';
+import { type ErrorCode } from '@tsforge7/heleket-sdk';
 
 // Tiny helper for exhaustive switch checks. If the SDK adds a new ErrorCode
 // in the future and you forget to handle it, TS will flag the call below.
@@ -638,7 +638,7 @@ Stable error codes, exported as `ERRORS`:
 | `U001` | `ERRORS.UNKNOWN_ERROR`        | Catch-all                        | 500        |
 
 ```ts
-import { ERRORS } from 'heleket-sdk';
+import { ERRORS } from '@tsforge7/heleket-sdk';
 
 ERRORS.API_ERROR.code; // 'A001'
 ERRORS.API_ERROR.message; // 'Heleket API returned an error'
@@ -866,7 +866,7 @@ const ok = heleket.paymentWebhook.verify(rawBodyString);
 You can also create a `WebhookVerifier` directly:
 
 ```ts
-import { Md5Signer, WebhookVerifier } from 'heleket-sdk';
+import { Md5Signer, WebhookVerifier } from '@tsforge7/heleket-sdk';
 const verifier = new WebhookVerifier(
   new Md5Signer(process.env.HELEKET_PAYMENT_KEY!),
 );
@@ -889,7 +889,7 @@ Delay = `min(baseDelayMs * 2^attempt + random() * baseDelayMs, maxDelayMs)`.
 Defaults are exported and can be inspected:
 
 ```ts
-import { RETRY_DEFAULTS, HTTP_DEFAULTS } from 'heleket-sdk';
+import { RETRY_DEFAULTS, HTTP_DEFAULTS } from '@tsforge7/heleket-sdk';
 
 RETRY_DEFAULTS.RETRIES; // 3
 RETRY_DEFAULTS.BASE_DELAY_MS; // 250
@@ -953,7 +953,7 @@ import {
   PayoutStatus,
   CourseSource,
   PayoutPriority,
-} from 'heleket-sdk';
+} from '@tsforge7/heleket-sdk';
 
 // Runtime — schema is what the SDK applies to validate request fields:
 Currency.Schema.parse('USDT');
@@ -987,7 +987,7 @@ import {
   CreatePaymentRequestBodySchema,
   type ICreatePaymentRequestBody,
   type ICreatePaymentResponse,
-} from 'heleket-sdk';
+} from '@tsforge7/heleket-sdk';
 
 // URL (relative path, no host):
 CreatePaymentCommand.url; // 'payment'
@@ -1053,7 +1053,7 @@ Every collaborator is behind an interface. Build a custom one and pass it in.
 ### Custom HTTP client (e.g. for logging or routing)
 
 ```ts
-import { FetchHttpClient, HeleketClient, type IHttpClient } from 'heleket-sdk';
+import { FetchHttpClient, HeleketClient, type IHttpClient } from '@tsforge7/heleket-sdk';
 
 class LoggingHttpClient implements IHttpClient {
   constructor(private readonly inner: IHttpClient) {}
@@ -1075,7 +1075,7 @@ const heleket = new HeleketClient({
 ### Custom retry policy
 
 ```ts
-import { type IRetryPolicy, RetryOutcomeKind } from 'heleket-sdk';
+import { type IRetryPolicy, RetryOutcomeKind } from '@tsforge7/heleket-sdk';
 
 class NoRetry implements IRetryPolicy {
   async execute<T>(op: () => Promise<T>): Promise<T> {
@@ -1089,7 +1089,7 @@ new HeleketClient({ ..., retryPolicy: new NoRetry() });
 ### Custom signer
 
 ```ts
-import { type ISigner, HeleketClient } from 'heleket-sdk';
+import { type ISigner, HeleketClient } from '@tsforge7/heleket-sdk';
 
 class HmacSigner implements ISigner {
   constructor(private readonly key: string) {}

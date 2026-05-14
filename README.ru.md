@@ -127,11 +127,11 @@ if (res.isSuccess && res.data) {
 ## Установка
 
 ```bash
-npm install heleket-sdk
+npm install @tsforge7/heleket-sdk
 # или
-pnpm add heleket-sdk
+pnpm add @tsforge7/heleket-sdk
 # или
-yarn add heleket-sdk
+yarn add @tsforge7/heleket-sdk
 ```
 
 Требования: **Node.js 18+** (нативный `fetch` и `AbortSignal.timeout`).
@@ -161,7 +161,7 @@ HELEKET_PAYOUT_KEY=...
 ### 1. Создать платёж
 
 ```ts
-import { HeleketClient } from 'heleket-sdk';
+import { HeleketClient } from '@tsforge7/heleket-sdk';
 
 const heleket = new HeleketClient({
   paymentKey: process.env.HELEKET_PAYMENT_KEY!,
@@ -208,7 +208,7 @@ const res = await heleket.payout.create({
 
 ```ts
 import express from 'express';
-import { HeleketClient } from 'heleket-sdk';
+import { HeleketClient } from '@tsforge7/heleket-sdk';
 
 const heleket = new HeleketClient({
   paymentKey: process.env.HELEKET_PAYMENT_KEY!,
@@ -234,7 +234,7 @@ app.post('/heleket/webhook', (req, res) => {
 
 ```ts
 import express from 'express';
-import { HeleketClient } from 'heleket-sdk';
+import { HeleketClient } from '@tsforge7/heleket-sdk';
 
 const heleket = new HeleketClient({
   merchantUuid: process.env.HELEKET_MERCHANT_UUID!,
@@ -386,7 +386,7 @@ app.listen(3000);
 > Только **`is_final: true`** — единственный безопасный сигнал чтобы зафиксировать состояние. Всё остальное — in-flight и может ещё измениться.
 
 ```ts
-import { PaymentStatus, PayoutStatus } from 'heleket-sdk';
+import { PaymentStatus, PayoutStatus } from '@tsforge7/heleket-sdk';
 
 // IDE автокомплитит все 14 статусов когда вводишь 'p'..., 'c'..., и т.д.:
 if (record.status === 'paid' || record.status === 'paid_over') {
@@ -488,7 +488,7 @@ if (existing.isSuccess) return existing.data!; // переиспользуем
 Конкретные рецепты по каждому коду. Все приходят в `res.code` в `ICommandResponse<T>`.
 
 ```ts
-import { type ErrorCode } from 'heleket-sdk';
+import { type ErrorCode } from '@tsforge7/heleket-sdk';
 
 // Маленький helper для exhaustive switch — определите его у себя в проекте.
 // Если SDK добавит новый ErrorCode и вы забудете его обработать,
@@ -639,7 +639,7 @@ res.data.status; // тип уточнён
 | `U001` | `ERRORS.UNKNOWN_ERROR`        | Catch-all                          | 500        |
 
 ```ts
-import { ERRORS } from 'heleket-sdk';
+import { ERRORS } from '@tsforge7/heleket-sdk';
 
 ERRORS.API_ERROR.code; // 'A001'
 ERRORS.API_ERROR.message; // 'Heleket API returned an error'
@@ -867,7 +867,7 @@ const ok = heleket.paymentWebhook.verify(rawBodyString);
 Можно создать `WebhookVerifier` напрямую:
 
 ```ts
-import { Md5Signer, WebhookVerifier } from 'heleket-sdk';
+import { Md5Signer, WebhookVerifier } from '@tsforge7/heleket-sdk';
 const verifier = new WebhookVerifier(
   new Md5Signer(process.env.HELEKET_PAYMENT_KEY!),
 );
@@ -890,7 +890,7 @@ verifier.verify(req.body);
 Дефолты экспортируются:
 
 ```ts
-import { RETRY_DEFAULTS, HTTP_DEFAULTS } from 'heleket-sdk';
+import { RETRY_DEFAULTS, HTTP_DEFAULTS } from '@tsforge7/heleket-sdk';
 
 RETRY_DEFAULTS.RETRIES; // 3
 RETRY_DEFAULTS.BASE_DELAY_MS; // 250
@@ -954,7 +954,7 @@ import {
   PayoutStatus,
   CourseSource,
   PayoutPriority,
-} from 'heleket-sdk';
+} from '@tsforge7/heleket-sdk';
 
 // Runtime — это та же схема, которую SDK применяет к полям запросов:
 Currency.Schema.parse('USDT');
@@ -988,7 +988,7 @@ import {
   CreatePaymentRequestBodySchema,
   type ICreatePaymentRequestBody,
   type ICreatePaymentResponse,
-} from 'heleket-sdk';
+} from '@tsforge7/heleket-sdk';
 
 // URL (относительный, без хоста):
 CreatePaymentCommand.url; // 'payment'
@@ -1054,7 +1054,7 @@ namespace XxxCommand {
 ### Кастомный HTTP-клиент (логирование, маршрутизация)
 
 ```ts
-import { FetchHttpClient, HeleketClient, type IHttpClient } from 'heleket-sdk';
+import { FetchHttpClient, HeleketClient, type IHttpClient } from '@tsforge7/heleket-sdk';
 
 class LoggingHttpClient implements IHttpClient {
   constructor(private readonly inner: IHttpClient) {}
@@ -1076,7 +1076,7 @@ const heleket = new HeleketClient({
 ### Кастомная retry-политика
 
 ```ts
-import { type IRetryPolicy, RetryOutcomeKind } from 'heleket-sdk';
+import { type IRetryPolicy, RetryOutcomeKind } from '@tsforge7/heleket-sdk';
 
 class NoRetry implements IRetryPolicy {
   async execute<T>(op: () => Promise<T>): Promise<T> {
@@ -1090,7 +1090,7 @@ new HeleketClient({ ..., retryPolicy: new NoRetry() });
 ### Кастомный signer
 
 ```ts
-import { type ISigner, HeleketClient } from 'heleket-sdk';
+import { type ISigner, HeleketClient } from '@tsforge7/heleket-sdk';
 
 class HmacSigner implements ISigner {
   constructor(private readonly key: string) {}
