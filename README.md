@@ -1,5 +1,23 @@
 # heleket-sdk
 
+![GitHub top language](https://img.shields.io/github/languages/top/tsforge/heleket-sdk)
+![GitHub Repo stars](https://img.shields.io/github/stars/tsforge/heleket-sdk)
+
+![npm version](https://img.shields.io/npm/v/%40tsforge7%2Fheleket-sdk)
+![GitHub Tag](https://img.shields.io/github/v/tag/tsforge/heleket-sdk)
+
+![Build Status](https://img.shields.io/github/actions/workflow/status/tsforge/heleket-sdk/.github/workflows/ci.yml)
+![License](https://img.shields.io/npm/l/%40tsforge7%2Fheleket-sdk)
+![NPM Last Update](https://img.shields.io/npm/last-update/%40tsforge7%2Fheleket-sdk)
+
+![Downloads per week](https://img.shields.io/npm/dw/%40tsforge7%2Fheleket-sdk?label=downloads%2Fweek)
+![Downloads per month](https://img.shields.io/npm/dm/%40tsforge7%2Fheleket-sdk?label=downloads%2Fmonth)
+![Downloads per year](https://img.shields.io/npm/dy/%40tsforge7%2Fheleket-sdk?label=downloads%2Fyear)
+![Total downloads](https://img.shields.io/npm/dt/%40tsforge7%2Fheleket-sdk?label=total%20downloads)
+
+![Known Vulnerabilities](https://snyk.io/test/github/tsforge/heleket-sdk/badge.svg)
+![Coverage Status](https://img.shields.io/codecov/c/github/tsforge/heleket-sdk)
+
 Type-safe Node.js / TypeScript SDK for the [Heleket](https://heleket.com) crypto payment API.
 
 > **BETA — not production-ready yet.** This SDK is functional and 35/35 tests pass against a mock transport, but it has not been validated end-to-end against the real Heleket API at scale. The public API may still change before `1.0.0`. Pin an exact version in `package.json`, expect breaking changes between minors, and please report issues on GitHub.
