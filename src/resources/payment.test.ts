@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import { HeleketClient } from '../client';
-import { Md5Signer } from '../core/signer';
+import { Md5Signer } from '../core';
 import {
   createFetchMock,
   errorEnvelope,
@@ -172,6 +172,51 @@ describe('PaymentResource.list and historyAll', () => {
     expect(sent.body).toBe('{}');
   });
 
+  test('list forwards dateFrom/dateTo in body and cursor in query', async () => {
+    const mock = createFetchMock({
+      status: 200,
+      body: successEnvelope({
+        items: [],
+        paginate: {
+          count: 0,
+          hasPages: false,
+          nextCursor: null,
+          previousCursor: null,
+          perPage: 15,
+        },
+      }),
+    });
+    const client = makeClient(mock.fetch);
+
+    await client.payment.list({
+      cursor: 'tok',
+      dateFrom: '2024-01-01 00:00:00',
+      dateTo: '2024-01-31 23:59:59',
+    });
+    const sent = mock.captured[0]!;
+    expect(sent.url).toBe('https://api.heleket.com/v1/payment/list?cursor=tok');
+    const body = JSON.parse(sent.body) as Record<string, unknown>;
+    expect(body).toEqual({
+      date_from: '2024-01-01 00:00:00',
+      date_to: '2024-01-31 23:59:59',
+    });
+  });
+
+  test('historyAll stops cleanly on API error', async () => {
+    const mock = createFetchMock({
+      status: 200,
+      body: errorEnvelope('boom'),
+    });
+    const client = makeClient(mock.fetch);
+
+    const collected: string[] = [];
+    for await (const item of client.payment.historyAll()) {
+      collected.push(item.uuid);
+    }
+    expect(collected).toEqual([]);
+    expect(mock.calls).toBe(1);
+  });
+
   test('historyAll iterates through paginated pages', async () => {
     const page1 = successEnvelope({
       items: [
@@ -222,5 +267,197 @@ describe('PaymentResource.list and historyAll', () => {
     expect(mock.captured[1]!.url).toBe(
       'https://api.heleket.com/v1/payment/list?cursor=c2',
     );
+  });
+});
+
+describe('PaymentResource.info', () => {
+  test('sends payment/info with order_id when orderId provided', async () => {
+    const mock = createFetchMock({
+      status: 200,
+      body: successEnvelope({
+        uuid: 'u',
+        order_id: '555',
+        amount: '16',
+        currency: 'USD',
+        payment_status: 'paid',
+        is_final: true,
+      }),
+    });
+    const client = makeClient(mock.fetch);
+
+    const res = await client.payment.info({ orderId: '555' });
+
+    expect(res.isSuccess).toBe(true);
+    expect(res.data?.paymentStatus).toBe('paid');
+
+    const sent = mock.captured[0]!;
+    expect(sent.url).toBe('https://api.heleket.com/v1/payment/info');
+    const body = JSON.parse(sent.body) as Record<string, unknown>;
+    expect(body).toEqual({ order_id: '555' });
+  });
+
+  test('returns VALIDATION_ERROR when neither uuid nor orderId provided', async () => {
+    const mock = createFetchMock({});
+    const client = makeClient(mock.fetch);
+
+    const res = await client.payment.info({});
+
+    expect(res.isSuccess).toBe(false);
+    expect(res.code).toBe('V001');
+    expect(mock.calls).toBe(0);
+  });
+});
+
+describe('PaymentResource.services', () => {
+  test('sends empty-body POST and parses the services array', async () => {
+    const mock = createFetchMock({
+      status: 200,
+      body: successEnvelope([
+        {
+          network: 'TRON',
+          currency: 'USDT',
+          is_available: true,
+          limit: { min_amount: '1', max_amount: '1000' },
+          commission: { fee_amount: '1', percent: '0' },
+        },
+      ]),
+    });
+    const client = makeClient(mock.fetch);
+
+    const res = await client.payment.services();
+
+    expect(res.isSuccess).toBe(true);
+    expect(res.data).toHaveLength(1);
+
+    const sent = mock.captured[0]!;
+    expect(sent.url).toBe('https://api.heleket.com/v1/payment/services');
+    expect(sent.body).toBe('{}');
+  });
+});
+
+describe('PaymentResource.resend', () => {
+  test('sends payment/resend with uuid when uuid provided', async () => {
+    const mock = createFetchMock({
+      status: 200,
+      body: successEnvelope({ success: true }),
+    });
+    const client = makeClient(mock.fetch);
+
+    const res = await client.payment.resend({
+      uuid: 'a7c0caec-a594-4aaa-b1c4-77d511857594',
+    });
+
+    expect(res.isSuccess).toBe(true);
+    const sent = mock.captured[0]!;
+    expect(sent.url).toBe('https://api.heleket.com/v1/payment/resend');
+    const body = JSON.parse(sent.body) as Record<string, unknown>;
+    expect(body).toEqual({ uuid: 'a7c0caec-a594-4aaa-b1c4-77d511857594' });
+  });
+});
+
+describe('PaymentResource.wallet', () => {
+  test('sends wallet creation request with snake_case body', async () => {
+    const mock = createFetchMock({
+      status: 200,
+      body: successEnvelope({
+        uuid: 'w',
+        order_id: 'w-1',
+        currency: 'USDT',
+        network: 'TRON',
+        address: 'T...',
+      }),
+    });
+    const client = makeClient(mock.fetch);
+
+    const res = await client.payment.wallet({
+      currency: 'USDT',
+      network: 'TRON',
+      orderId: 'w-1',
+      urlCallback: 'https://example.com/cb',
+    });
+
+    expect(res.isSuccess).toBe(true);
+    expect(res.data?.address).toBe('T...');
+
+    const sent = mock.captured[0]!;
+    expect(sent.url).toBe('https://api.heleket.com/v1/wallet');
+    const body = JSON.parse(sent.body) as Record<string, unknown>;
+    expect(body).toEqual({
+      currency: 'USDT',
+      network: 'TRON',
+      order_id: 'w-1',
+      url_callback: 'https://example.com/cb',
+    });
+  });
+
+  test('returns VALIDATION_ERROR when orderId is empty', async () => {
+    const mock = createFetchMock({});
+    const client = makeClient(mock.fetch);
+
+    const res = await client.payment.wallet({
+      currency: 'USDT',
+      network: 'TRON',
+      orderId: '',
+    });
+
+    expect(res.isSuccess).toBe(false);
+    expect(res.code).toBe('V001');
+    expect(mock.calls).toBe(0);
+  });
+});
+
+describe('PaymentResource.balance', () => {
+  test('sends empty-body POST to /balance and parses the array result', async () => {
+    const mock = createFetchMock({
+      status: 200,
+      body: successEnvelope([
+        {
+          balance: {
+            merchant: [{ uuid: 'm1', balance: '100.00', currencyCode: 'USDT' }],
+            user: [{ uuid: 'u1', balance: '50.00', currencyCode: 'USDT' }],
+          },
+        },
+      ]),
+    });
+    const client = makeClient(mock.fetch);
+
+    const res = await client.payment.balance();
+
+    expect(res.isSuccess).toBe(true);
+    expect(res.data).toHaveLength(1);
+    expect(res.data?.[0]?.balance.merchant[0]?.currencyCode).toBe('USDT');
+
+    const sent = mock.captured[0]!;
+    expect(sent.url).toBe('https://api.heleket.com/v1/balance');
+    expect(sent.body).toBe('{}');
+  });
+});
+
+describe('HeleketClient payment-key gating', () => {
+  test('throws when accessing paymentWebhook without paymentKey', () => {
+    const client = new HeleketClient({
+      payoutKey: 'po',
+      merchantUuid,
+      fetch: createFetchMock({}).fetch,
+    });
+    expect(() => client.paymentWebhook).toThrow(/paymentKey/);
+  });
+
+  test('paymentWebhook is constructed lazily and reused', () => {
+    const client = new HeleketClient({
+      paymentKey,
+      merchantUuid,
+      fetch: createFetchMock({}).fetch,
+    });
+    expect(client.paymentWebhook).toBe(client.paymentWebhook);
+  });
+
+  test('payment resource is constructed lazily and reused', () => {
+    const client = new HeleketClient({
+      paymentKey,
+      merchantUuid,
+      fetch: createFetchMock({}).fetch,
+    });
+    expect(client.payment).toBe(client.payment);
   });
 });
