@@ -30,10 +30,10 @@ Wire-compatible 1:1 with the official [`heleket/php-sdk`](https://github.com/Hel
 
 ## Table of contents
 
-- [Why this SDK](#why-this-sdk)
-- [vs `heleket/php-sdk`](#vs-heleketphp-sdk)
 - [Install](#install)
 - [NestJS](#nestjs)
+- [Why this SDK](#why-this-sdk)
+- [vs `heleket/php-sdk`](#vs-heleketphp-sdk)
 - [Get your credentials](#get-your-credentials)
 - [Quick start](#quick-start)
 - [Recipe: accept your first payment end-to-end](#recipe-accept-your-first-payment-end-to-end)
@@ -63,6 +63,28 @@ Wire-compatible 1:1 with the official [`heleket/php-sdk`](https://github.com/Hel
 - [License](#license)
 
 ---
+
+## Install
+
+```bash
+npm install @tsforge7/heleket-sdk
+# or
+pnpm add @tsforge7/heleket-sdk
+# or
+yarn add @tsforge7/heleket-sdk
+```
+
+Requirements: **Node.js 18+** (uses native `fetch` and `AbortSignal.timeout`).
+
+`zod ^4` is a runtime dependency.
+
+## NestJS
+
+If you use NestJS, there is a ready-made wrapper: [`@tsforge7/heleket-sdk-nestjs`](https://www.npmjs.com/package/@tsforge7/heleket-sdk-nestjs) ([GitHub](https://github.com/tsforge/heleket-sdk-nestjs)).
+
+```bash
+npm install @tsforge7/heleket-sdk-nestjs @tsforge7/heleket-sdk
+```
 
 ## Why this SDK
 
@@ -146,24 +168,6 @@ if (res.isSuccess && res.data) {
   console.error(res.code, res.message, res.errors);
 }
 ```
-
-## Install
-
-```bash
-npm install @tsforge7/heleket-sdk
-# or
-pnpm add @tsforge7/heleket-sdk
-# or
-yarn add @tsforge7/heleket-sdk
-```
-
-Requirements: **Node.js 18+** (uses native `fetch` and `AbortSignal.timeout`).
-
-`zod ^4` is a runtime dependency.
-
-## NestJS
-
-If you use NestJS, there is a ready-made wrapper: [`@tsforge7/heleket-sdk-nestjs`](https://www.npmjs.com/package/@tsforge7/heleket-sdk-nestjs) ([GitHub](https://github.com/tsforge/heleket-sdk-nestjs)).
 
 ## Get your credentials
 

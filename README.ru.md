@@ -30,10 +30,10 @@ Wire-совместимый 1:1 с официальным [`heleket/php-sdk`](ht
 
 ## Оглавление
 
-- [Зачем этот SDK](#зачем-этот-sdk)
-- [vs `heleket/php-sdk`](#vs-heleketphp-sdk)
 - [Установка](#установка)
 - [NestJS](#nestjs)
+- [Зачем этот SDK](#зачем-этот-sdk)
+- [vs `heleket/php-sdk`](#vs-heleketphp-sdk)
 - [Получить ключи](#получить-ключи)
 - [Быстрый старт](#быстрый-старт)
 - [Рецепт: принять первый платёж end-to-end](#рецепт-принять-первый-платёж-end-to-end)
@@ -63,6 +63,28 @@ Wire-совместимый 1:1 с официальным [`heleket/php-sdk`](ht
 - [Лицензия](#лицензия)
 
 ---
+
+## Установка
+
+```bash
+npm install @tsforge7/heleket-sdk
+# или
+pnpm add @tsforge7/heleket-sdk
+# или
+yarn add @tsforge7/heleket-sdk
+```
+
+Требования: **Node.js 18+** (нативный `fetch` и `AbortSignal.timeout`).
+
+`zod ^4` — runtime-зависимость.
+
+## NestJS
+
+Если вы используете NestJS, есть готовый враппер: [`@tsforge7/heleket-sdk-nestjs`](https://www.npmjs.com/package/@tsforge7/heleket-sdk-nestjs) ([GitHub](https://github.com/tsforge/heleket-sdk-nestjs)).
+
+```bash
+npm install @tsforge7/heleket-sdk-nestjs @tsforge7/heleket-sdk
+```
 
 ## Зачем этот SDK
 
@@ -146,24 +168,6 @@ if (res.isSuccess && res.data) {
   console.error(res.code, res.message, res.errors);
 }
 ```
-
-## Установка
-
-```bash
-npm install @tsforge7/heleket-sdk
-# или
-pnpm add @tsforge7/heleket-sdk
-# или
-yarn add @tsforge7/heleket-sdk
-```
-
-Требования: **Node.js 18+** (нативный `fetch` и `AbortSignal.timeout`).
-
-`zod ^4` — runtime-зависимость.
-
-## NestJS
-
-Если вы используете NestJS, есть готовый враппер: [`@tsforge7/heleket-sdk-nestjs`](https://www.npmjs.com/package/@tsforge7/heleket-sdk-nestjs) ([GitHub](https://github.com/tsforge/heleket-sdk-nestjs)).
 
 ## Получить ключи
 
