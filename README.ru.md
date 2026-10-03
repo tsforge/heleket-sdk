@@ -20,7 +20,7 @@
 
 Типобезопасный Node.js / TypeScript SDK для крипто-платёжного API [Heleket](https://heleket.com).
 
-> **BETA — пока не production-ready.** SDK функционален, 35/35 тестов проходят на мок-транспорте, но **не проверен end-to-end против реального Heleket API под нагрузкой**. Публичный API может меняться до `1.0.0`. Пиньте точную версию в `package.json`, ожидайте breaking changes между минорами, баги — в GitHub Issues.
+> **BETA — пока не production-ready.** SDK функционален, 113 тестов проходят на мок-транспорте, но **не проверен end-to-end против реального Heleket API под нагрузкой**. Публичный API может меняться до `1.0.0`. Пиньте точную версию в `package.json`, ожидайте breaking changes между минорами, баги — в GitHub Issues.
 
 Wire-совместимый 1:1 с официальным [`heleket/php-sdk`](https://github.com/Heleket/php-sdk) (тот же хост `https://api.heleket.com/v1`, та же MD5-подпись, те же заголовки, тот же envelope `{state, result}`). Отличия от PHP-SDK перечислены в [подробном сравнении](#vs-heleketphp-sdk).
 
@@ -80,7 +80,7 @@ Wire-совместимый 1:1 с официальным [`heleket/php-sdk`](ht
 |                                   | `heleket/php-sdk` v1.0.0                                                                                                | `heleket-sdk` (этот пакет)                                                                                                                                                 |
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Совместимость по проводу**      | референс                                                                                                                | идентично (хост, sign, headers, envelope)                                                                                                                                  |
-| **Endpoints наружу**              | 9 (7 payment + 2 payout)                                                                                                | **11** (+ `payout.list`, `payout.services`)                                                                                                                                |
+| **Endpoints наружу**              | 21 (тот же набор, что в PHP SDK)                                                                                        | **21** — все эндпоинты PHP, каждый как типизированная команда                                                                                                              |
 | **HTTP-транспорт**                | cURL                                                                                                                    | нативный `fetch` (Node 18+)                                                                                                                                                |
 | **Пагинация**                     | `history($page = 1)` — передаёт integer как cursor (за пределами первой страницы не работает; cursor Heleket — это хэш) | `list({cursor: nextCursor})` корректно; плюс `historyAll()` async-итератор                                                                                                 |
 | **Верификация вебхуков**          | нет в SDK — пишите сами                                                                                                 | `paymentWebhook.verify()` / `payoutWebhook.verify()`, constant-time `timingSafeEqual`                                                                                      |
@@ -95,9 +95,9 @@ Wire-совместимый 1:1 с официальным [`heleket/php-sdk`](ht
 | **Автокомплит сетей/валют**       | просто `string`                                                                                                         | неймспейсы `Network.Value` / `Currency.Value` — IDE подсказывает известные, любая новая строка тоже принимается (трюк `(string & {})`)                                     |
 | **Метаданные endpoint'ов**        | нет                                                                                                                     | константы `REST_API.*` + `endpointDetails` на команду (controller URL, метод, описание) — для OpenAPI/codegen                                                              |
 | **Подменяемость внутренностей**   | `final` классы, хардкод URL                                                                                             | каждая зависимость за интерфейсом: `IHttpClient`, `IRetryPolicy`, `ICaseConverter`, `IEnvelopeParser`, `ISigner`, `IUrlBuilder` — DI через опции конструктора              |
-| **Тесты**                         | нет в репо                                                                                                              | 35 unit-тестов с мок-транспортом, без реальной сети                                                                                                                        |
+| **Тесты**                         | нет в репо                                                                                                              | 113 тестов (vitest), мок fetch-транспорт, реальная сеть не нужна                                                                                                           |
 | **Дистрибуция**                   | n/a (Composer)                                                                                                          | dual ESM + CJS, парные `.d.ts` / `.d.cts`, ноль runtime-зависимостей кроме zod                                                                                             |
-| **Строк кода**                    | ~150                                                                                                                    | ~1.7K включая тесты, схемы, типы                                                                                                                                           |
+| **Строк кода**                    | ~150                                                                                                                    | не измерено                                                                                                                                                                |
 
 ### Бок-о-бок: создать платёж
 
@@ -252,6 +252,8 @@ app.post('/heleket/webhook', (req, res) => {
 
 Полный happy path для онлайн-чекаута: клиент жмёт «Оплатить», вы редиректите на Heleket, он платит криптой, Heleket дёргает ваш webhook, вы помечаете заказ оплаченным. Ниже — самодостаточный пример на Express, который покрывает весь поток.
 
+> **Иллюстрация.** `db` — ваш слой данных, `express` нужно установить. Показан поток, а не готовый код для запуска.
+
 ```ts
 import express from 'express';
 import { HeleketClient, PAYMENT_STATUS } from '@tsforge7/heleket-sdk';
@@ -260,6 +262,13 @@ const heleket = new HeleketClient({
   merchantUuid: process.env.HELEKET_MERCHANT_UUID!,
   paymentKey: process.env.HELEKET_PAYMENT_KEY!,
 });
+
+// Your own order statuses, kept in one place
+const ORDER_STATUS = {
+  AWAITING_PAYMENT: 'awaiting_payment',
+  PAID: 'paid',
+  FAILED: 'failed',
+} as const;
 
 const app = express();
 app.use(express.json());
@@ -290,7 +299,7 @@ app.post('/checkout', async (req, res) => {
   // Сохраняем uuid инвойса рядом с заказом — чтобы потом сопоставить.
   await db.orders.update(orderId, {
     invoiceUuid: created.data.uuid,
-    status: 'awaiting_payment',
+    status: ORDER_STATUS.AWAITING_PAYMENT,
   });
 
   res.json({ payUrl: created.data.url });
@@ -315,7 +324,7 @@ app.post('/heleket/webhook', async (req, res) => {
   // Идемпотентность: один и тот же webhook может прилететь несколько раз.
   // Ищем по order_id, решаем на основе текущего состояния в БД.
   const order = await db.orders.findByOrderId(w.order_id);
-  if (!order || order.status === 'paid') {
+  if (!order || order.status === ORDER_STATUS.PAID) {
     return res.sendStatus(200); // уже обработано — ack и забыли
   }
 
@@ -324,7 +333,7 @@ app.post('/heleket/webhook', async (req, res) => {
     w.status === PAYMENT_STATUS.PAID_OVER
   ) {
     await db.orders.update(w.order_id, {
-      status: 'paid',
+      status: ORDER_STATUS.PAID,
       paidAmount: w.payment_amount,
       paidCurrency: w.currency,
       txid: w.txid,
@@ -335,7 +344,7 @@ app.post('/heleket/webhook', async (req, res) => {
     w.status === PAYMENT_STATUS.CANCEL ||
     w.status === PAYMENT_STATUS.SYSTEM_FAIL
   ) {
-    await db.orders.update(w.order_id, { status: 'failed' });
+    await db.orders.update(w.order_id, { status: ORDER_STATUS.FAILED });
   }
 
   // Всегда отвечаем 2xx — иначе Heleket будет ретраить.
@@ -348,14 +357,14 @@ app.get('/orders/:orderId', async (req, res) => {
   const order = await db.orders.findByOrderId(req.params.orderId);
   if (!order) return res.sendStatus(404);
 
-  if (order.status === 'awaiting_payment') {
+  if (order.status === ORDER_STATUS.AWAITING_PAYMENT) {
     const info = await heleket.payment.info({ orderId: req.params.orderId });
     if (
       info.isSuccess &&
       info.data?.status === PAYMENT_STATUS.PAID &&
-      order.status !== 'paid'
+      order.status !== ORDER_STATUS.PAID
     ) {
-      await db.orders.update(req.params.orderId, { status: 'paid' });
+      await db.orders.update(req.params.orderId, { status: ORDER_STATUS.PAID });
     }
   }
   res.json(order);
@@ -482,6 +491,8 @@ for (const s of PAYMENT_STATUS_VALUES) {
 
 2. **Вы можете создать один и тот же инвойс дважды.** Если ваш `/checkout`-хендлер ретраится (refresh браузера, redrive очереди) — безопасный путь это передавать **тот же `order_id`**:
 
+> **Набросок.** Показан порядок поиска. `return` относится к вашему обработчику.
+
 ```ts
 const a = await heleket.payment.create({
   amount: '10',
@@ -504,6 +515,8 @@ if (existing.isSuccess) return existing.data!; // переиспользуем
 ## Кулинарная книга ошибок
 
 Конкретные рецепты по каждому коду. Все приходят в `res.code` в `ICommandResponse<T>`.
+
+> **Псевдокод.** `log`, классы ошибок (`BadRequest`, `ServiceUnavailable`, `GatewayTimeout`, `InternalError`) и `res` берутся из вашего кода. Используйте switch как шаблон обработки ошибок.
 
 ```ts
 import { type ErrorCode } from '@tsforge7/heleket-sdk';
@@ -852,6 +865,8 @@ for await (const tx of heleket.payment.historyAll({
 
 Поведение: итератор **молча останавливается на первой неуспешной странице**, чтобы не усложнять цикл. Если нужна гранулярная обработка ошибок — вызывай `list()` напрямую:
 
+> **Набросок.** `process` — ваша функция, цикл показывает обход курсора.
+
 ```ts
 let cursor: string | undefined;
 while (true) {
@@ -868,7 +883,7 @@ while (true) {
 
 ## Верификация вебхуков
 
-Heleket добавляет к телу каждого webhook поле `sign: <md5>`. `WebhookVerifier` извлекает его, пересчитывает `md5(base64(JSON.stringify(rest)) + apiKey)` и сравнивает в **constant time** через `crypto.timingSafeEqual`.
+Heleket добавляет к телу каждого webhook поле `sign: <md5>`. `WebhookVerifier` извлекает его, пересчитывает `md5(base64(phpJsonEncode(rest)) + apiKey)` (`phpJsonEncode` экранирует `/` как PHP `json_encode`, которым Heleket подписывает) и сравнивает в **constant time** через `crypto.timingSafeEqual`.
 
 Два верификатора, по одному на ключ:
 
@@ -889,7 +904,7 @@ app.post('/heleket/webhook', (req, res) => {
   res.sendStatus(200);
 });
 
-// Raw body (предпочтительнее — порядок ключей совпадает с сервером байт-в-байт):
+// Raw body (предпочтительнее — JSON разбирается и пересобирается для проверки, поэтому форматирование тела не важно):
 const ok = heleket.paymentWebhook.verify(rawBodyString);
 ```
 
@@ -928,6 +943,8 @@ HTTP_DEFAULTS.TIMEOUT_MS; // 30_000
 ```
 
 Переопределить:
+
+> **Частичный конфиг.** `...` — остальные ваши опции. Показан только таймаут.
 
 ```ts
 new HeleketClient({
@@ -1130,6 +1147,8 @@ namespace XxxCommand {
 
 ### Кастомный HTTP-клиент (логирование, маршрутизация)
 
+> **Набросок.** Показано, как подключить свой клиент. Нужно реализовать и `post`, и `get`.
+
 ```ts
 import { FetchHttpClient, HeleketClient, type IHttpClient } from '@tsforge7/heleket-sdk';
 
@@ -1142,6 +1161,10 @@ class LoggingHttpClient implements IHttpClient {
     console.log(req.url, res.status, `${Date.now() - start}ms`);
     return res;
   }
+
+  async get(req: Parameters<IHttpClient['get']>[0]) {
+    return this.inner.get(req);
+  }
 }
 
 const heleket = new HeleketClient({
@@ -1151,6 +1174,8 @@ const heleket = new HeleketClient({
 ```
 
 ### Кастомная retry-политика
+
+> **Частичный конфиг.** `...` — остальные ваши опции.
 
 ```ts
 import { type IRetryPolicy, RetryOutcomeKind } from '@tsforge7/heleket-sdk';
@@ -1165,6 +1190,8 @@ new HeleketClient({ ..., retryPolicy: new NoRetry() });
 ```
 
 ### Кастомный signer
+
+> **Набросок.** Тело подписи зависит от вашей схемы; метод должен возвращать строку.
 
 ```ts
 import { type ISigner, HeleketClient } from '@tsforge7/heleket-sdk';
@@ -1195,10 +1222,10 @@ HeleketClient (composition root)
                                    CommandExecutor.execute()
                                    ├── 1. zod валидация входа
                                    ├── 2. camelCase → snake_case (ICaseConverter)
-                                   ├── 3. JSON.stringify body
+                                   ├── 3. JSON-тело в стиле PHP (пустое без параметров)
                                    ├── 4. md5 подпись body        (ISigner)
                                    ├── 5. сборка URL              (UrlBuilder)
-                                   ├── 6. POST с ретраями         (IHttpClient + IRetryPolicy)
+                                   ├── 6. GET/POST с ретраями      (IHttpClient + IRetryPolicy)
                                    ├── 7. разбор envelope          (IEnvelopeParser)
                                    ├── 8. snake_case → camelCase   (ICaseConverter)
                                    └── 9. zod валидация ответа (loose)
@@ -1232,24 +1259,28 @@ src/
                               (всё неймспейсами)
     payment/                → CreatePaymentCommand, GetPaymentInfoCommand, ListPaymentsCommand,
                               GetPaymentServicesCommand, ResendPaymentWebhookCommand,
-                              CreateStaticWalletCommand, GetBalanceCommand
+                              CreateStaticWalletCommand, GetBalanceCommand,
+                              GetAmlLinksCommand, GenerateWalletQrCommand, BlockStaticWalletCommand,
+                              RefundBlockedWalletCommand, TestWebhookCommand, GetExchangeRatesCommand
                               (+ Request/Response схемы и типы на уровне модуля)
     payout/                 → CreatePayoutCommand, GetPayoutInfoCommand, ListPayoutsCommand,
-                              GetPayoutServicesCommand
-  shared/api/               → BASE_URL, REST_API, getEndpointDetails, HttpMethod,
+                              GetPayoutServicesCommand,
+                              RefundPaymentCommand, CalculateWithdrawalCommand,
+                              TransferToPersonalCommand, TransferToBusinessCommand
+  shared/api/               → BASE_URL, REST_API, getEndpointDetails, THttpMethod, HTTP_METHOD,
                               IEndpointDetails, controllers (PAYMENT_ROUTES, PAYOUT_ROUTES, ...)
   constants/                → ERRORS, ErrorKey, ErrorEntry, HEADERS,
-                              CONTENT_TYPE_JSON, ACCEPT_JSON
+                              CONTENT_TYPE_JSON
   common/                   → ICommandResponse, Json, sleep, tryParseJson
 ```
 
-Всё перевыставлено из корня пакета.
+Всё перечисленное выше реэкспортируется из корня пакета, кроме `ACCEPT_JSON`.
 
 ## TypeScript
 
 - Сборка ESM (`./dist/index.js`) + CJS (`./dist/index.cjs`) с парными `.d.ts` / `.d.cts`.
 - Собрано под `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`.
-- `peerDependencies`: `zod ^4`.
+- `zod ^4` — обычная runtime-`dependency`, ставится автоматически.
 - Module resolution: `Bundler`.
 
 ## Скрипты
@@ -1258,6 +1289,7 @@ src/
 npm run build        # tsup ESM + CJS + .d.ts
 npm run typecheck    # tsc --noEmit
 npm test             # vitest run
+npm run test:coverage # vitest с отчётом покрытия
 npm run test:watch   # vitest watch
 npm run lint         # eslint .
 npm run lint:fix     # eslint . --fix
