@@ -1,7 +1,7 @@
 {
   "name": "@tsforge7/heleket-sdk",
   "version": "0.0.6",
-  "author": "tsforge7",
+  "author": "tsforge",
   "license": "MIT",
   "description": "Heleket SDK for Node.js (BETA).",
   "type": "module",
