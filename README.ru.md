@@ -33,6 +33,7 @@ Wire-совместимый 1:1 с официальным [`heleket/php-sdk`](ht
 - [Зачем этот SDK](#зачем-этот-sdk)
 - [vs `heleket/php-sdk`](#vs-heleketphp-sdk)
 - [Установка](#установка)
+- [NestJS](#nestjs)
 - [Получить ключи](#получить-ключи)
 - [Быстрый старт](#быстрый-старт)
 - [Рецепт: принять первый платёж end-to-end](#рецепт-принять-первый-платёж-end-to-end)
@@ -159,6 +160,10 @@ yarn add @tsforge7/heleket-sdk
 Требования: **Node.js 18+** (нативный `fetch` и `AbortSignal.timeout`).
 
 `zod ^4` — runtime-зависимость.
+
+## NestJS
+
+Если вы используете NestJS, есть готовый враппер: [`@tsforge7/heleket-sdk-nestjs`](https://www.npmjs.com/package/@tsforge7/heleket-sdk-nestjs) ([GitHub](https://github.com/tsforge/heleket-sdk-nestjs)).
 
 ## Получить ключи
 
