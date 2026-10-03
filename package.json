@@ -23,7 +23,6 @@
   },
   "files": [
     "dist",
-    "src",
     "LICENSE"
   ],
   "repository": {
@@ -43,6 +42,7 @@
   },
   "scripts": {
     "build": "tsup",
+    "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

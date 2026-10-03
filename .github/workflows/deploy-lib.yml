@@ -3,7 +3,6 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*' # v0.1.0
       - '[0-9]*.*.*' # 0.1.0 (no `v` prefix)
 
 concurrency:
@@ -40,8 +39,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
-          registry-url: 'https://registry.npmjs.org'
+          node-version: '22.x'
           cache: npm
 
       - name: Install
@@ -49,9 +47,8 @@ jobs:
 
       - name: Verify tag matches package.json version
         run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
           PKG_VERSION="$(node -p "require('./package.json').version")"
-          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+          if [ "${GITHUB_REF_NAME}" != "${PKG_VERSION}" ]; then
             echo "::error::Tag '$GITHUB_REF_NAME' does not match package.json version '$PKG_VERSION'"
             exit 1
           fi
@@ -71,10 +68,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Update npm (Trusted Publishing needs npm >= 11.5)
+        run: npm install -g npm@latest
+
       - name: Publish
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   notify-success:
     name: Notify success
