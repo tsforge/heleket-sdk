@@ -1,8 +1,12 @@
 import {
+  CalculateWithdrawalCommand,
   CreatePayoutCommand,
   GetPayoutInfoCommand,
   GetPayoutServicesCommand,
   ListPayoutsCommand,
+  RefundPaymentCommand,
+  TransferToBusinessCommand,
+  TransferToPersonalCommand,
 } from '../commands';
 import type { ICommandResponse } from '../common';
 import { Resource } from './resource.base';
@@ -39,6 +43,34 @@ export class PayoutResource extends Resource {
     const query = cursor !== undefined ? { cursor } : undefined;
 
     return this.execute(ListPayoutsCommand, body, { signal, query });
+  }
+
+  public refund(
+    input: RefundPaymentCommand.IRequestBody,
+    signal?: AbortSignal,
+  ): Promise<ICommandResponse<RefundPaymentCommand.IResponse>> {
+    return this.execute(RefundPaymentCommand, input, { signal });
+  }
+
+  public calculateWithdrawal(
+    input: CalculateWithdrawalCommand.IRequestBody,
+    signal?: AbortSignal,
+  ): Promise<ICommandResponse<CalculateWithdrawalCommand.IResponse>> {
+    return this.execute(CalculateWithdrawalCommand, input, { signal });
+  }
+
+  public transferToPersonal(
+    input: TransferToPersonalCommand.IRequestBody,
+    signal?: AbortSignal,
+  ): Promise<ICommandResponse<TransferToPersonalCommand.IResponse>> {
+    return this.execute(TransferToPersonalCommand, input, { signal });
+  }
+
+  public transferToBusiness(
+    input: TransferToBusinessCommand.IRequestBody,
+    signal?: AbortSignal,
+  ): Promise<ICommandResponse<TransferToBusinessCommand.IResponse>> {
+    return this.execute(TransferToBusinessCommand, input, { signal });
   }
 
   public async *historyAll(

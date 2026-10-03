@@ -3,4 +3,5 @@ import type { IHttpResponse } from './http-response.interface';
 
 export interface IHttpClient {
   post(request: IHttpRequest): Promise<IHttpResponse>;
+  get(request: IHttpRequest): Promise<IHttpResponse>;
 }

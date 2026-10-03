@@ -3,7 +3,7 @@ import type { IEnvelopeParser } from '../../envelope';
 import type { IHttpClient } from '../../http';
 import type { IRetryPolicy } from '../../retry';
 import type { ISigner } from '../../signer';
-import type { UrlBuilder } from '../../url';
+import type { IUrlBuilder } from '../../url';
 
 export interface ICommandExecutorDeps {
   signer: ISigner;
@@ -12,6 +12,6 @@ export interface ICommandExecutorDeps {
   retryPolicy: IRetryPolicy;
   caseConverter: ICaseConverter;
   envelopeParser: IEnvelopeParser;
-  urlBuilder: UrlBuilder;
+  urlBuilder: IUrlBuilder;
   timeoutMs: number;
 }

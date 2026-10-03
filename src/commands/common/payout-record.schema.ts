@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
 import { AmountLike } from './amount.schema';
-import { PayoutStatus } from './payout-status';
 
 export namespace PayoutRecord {
   export const Schema = z
@@ -12,7 +11,7 @@ export namespace PayoutRecord {
       network: z.string(),
       address: z.string(),
       txid: z.string().nullable().optional(),
-      status: PayoutStatus.Schema,
+      status: z.string().min(1),
       isFinal: z.boolean(),
       balance: AmountLike.Schema,
       orderId: z.string().optional(),

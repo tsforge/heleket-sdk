@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
+import { phpJsonEncode } from '../common';
 import { Md5Signer } from '../core/signer';
 import { WebhookVerifier } from './webhook-verifier';
 
@@ -11,7 +12,7 @@ const signedPayload = (
   data: Record<string, unknown>,
 ): Record<string, unknown> => ({
   ...data,
-  sign: signer.sign(JSON.stringify(data)),
+  sign: signer.sign(phpJsonEncode(data)),
 });
 
 describe('WebhookVerifier', () => {
@@ -46,6 +47,14 @@ describe('WebhookVerifier', () => {
 
   test('returns false for malformed JSON string', () => {
     expect(verifier.verify('{not json')).toBe(false);
+  });
+
+  test('verifies a payload with URLs, which are signed with escaped slashes', () => {
+    const payload = signedPayload({
+      order_id: 'o1',
+      url: 'https://example.com/cb',
+    });
+    expect(verifier.verify(JSON.stringify(payload))).toBe(true);
   });
 
   test('returns false for non-object payloads', () => {

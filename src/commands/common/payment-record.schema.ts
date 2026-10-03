@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
 import { AmountLike } from './amount.schema';
-import { PaymentStatus } from './payment-status';
 
 export namespace PaymentRecord {
   export const Schema = z
@@ -19,8 +18,8 @@ export namespace PaymentRecord {
       address: z.string().nullable().optional(),
       from: z.string().nullable().optional(),
       txid: z.string().nullable().optional(),
-      paymentStatus: PaymentStatus.Schema.optional(),
-      status: PaymentStatus.Schema.optional(),
+      paymentStatus: z.string().min(1).optional(),
+      status: z.string().min(1).optional(),
       url: z.string().optional(),
       expiredAt: z.number().int().optional(),
       isFinal: z.boolean().optional(),

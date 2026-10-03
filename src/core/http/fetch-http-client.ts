@@ -1,4 +1,6 @@
 import { ERRORS } from '../../constants';
+import { HTTP_METHOD } from '../../shared/api';
+import type { THttpMethod } from '../../shared/api';
 import type {
   FetchLike,
   IHttpClient,
@@ -14,14 +16,25 @@ export class FetchHttpClient implements IHttpClient {
     this.fetchImpl = fetchImpl;
   }
 
-  public async post(request: IHttpRequest): Promise<IHttpResponse> {
+  public post(request: IHttpRequest): Promise<IHttpResponse> {
+    return this.send(HTTP_METHOD.POST, request);
+  }
+
+  public get(request: IHttpRequest): Promise<IHttpResponse> {
+    return this.send(HTTP_METHOD.GET, request);
+  }
+
+  private async send(
+    method: THttpMethod,
+    request: IHttpRequest,
+  ): Promise<IHttpResponse> {
     const timeoutSignal = AbortSignal.timeout(request.timeoutMs);
     const signal = this.composeSignal(timeoutSignal, request.signal);
 
     let response: Response;
     try {
       response = await this.fetchImpl(request.url, {
-        method: 'POST',
+        method: method.toUpperCase(),
         headers: request.headers,
         body: request.body,
         signal,

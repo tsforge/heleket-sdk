@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { getEndpointDetails, REST_API } from '../../shared/api';
+import { getEndpointDetails, HTTP_METHOD, REST_API } from '../../shared/api';
 import {
   CourseSource,
   Currency,
@@ -50,7 +50,7 @@ export namespace CreatePayoutCommand {
 
   export const endpointDetails = getEndpointDetails(
     REST_API.PAYOUT.POST_CREATE,
-    'post',
+    HTTP_METHOD.POST,
     'Create a new payout',
     'Sends crypto from your merchant balance to the supplied address.',
   );

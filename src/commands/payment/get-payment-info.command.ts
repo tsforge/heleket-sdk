@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 
-import { getEndpointDetails, REST_API } from '../../shared/api';
+import { getEndpointDetails, HTTP_METHOD, REST_API } from '../../shared/api';
 import { ByUuidOrOrderId, PaymentRecord } from '../common';
 
 export const GetPaymentInfoRequestBodySchema = ByUuidOrOrderId.Schema;
@@ -25,7 +25,7 @@ export namespace GetPaymentInfoCommand {
 
   export const endpointDetails = getEndpointDetails(
     REST_API.PAYMENT.POST_INFO,
-    'post',
+    HTTP_METHOD.POST,
     'Get information about a payment invoice',
     'Retrieves a single payment invoice by uuid or order_id. If both are provided, order_id wins.',
   );

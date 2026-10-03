@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { getEndpointDetails, REST_API } from '../../shared/api';
+import { getEndpointDetails, HTTP_METHOD, REST_API } from '../../shared/api';
 import { Paginate, PaymentRecord } from '../common';
 
 export const ListPaymentsRequestBodySchema = z
@@ -45,7 +45,7 @@ export namespace ListPaymentsCommand {
 
   export const endpointDetails = getEndpointDetails(
     REST_API.PAYMENT.POST_LIST,
-    'post',
+    HTTP_METHOD.POST,
     'List payments with cursor pagination',
     'Returns a page of payments. Pass cursor as a query param to navigate pages, dateFrom/dateTo in the body to filter by creation date.',
   );

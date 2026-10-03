@@ -1,15 +1,15 @@
-export type HttpMethod = 'post' | 'get' | 'put' | 'delete' | 'patch';
+import type { THttpMethod } from './http-method';
 
 export interface IEndpointDetails {
   CONTROLLER_URL: string;
-  REQUEST_METHOD: HttpMethod;
+  REQUEST_METHOD: THttpMethod;
   METHOD_DESCRIPTION: string;
   METHOD_LONG_DESCRIPTION?: string;
 }
 
 export function getEndpointDetails(
   controllerUrl: string,
-  requestMethod: HttpMethod,
+  requestMethod: THttpMethod,
   methodDescription: string,
   methodLongDescription?: string,
 ): IEndpointDetails {

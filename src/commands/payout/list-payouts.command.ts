@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { getEndpointDetails, REST_API } from '../../shared/api';
+import { getEndpointDetails, HTTP_METHOD, REST_API } from '../../shared/api';
 import { Paginate, PayoutRecord } from '../common';
 
 export const ListPayoutsRequestBodySchema = z
@@ -45,7 +45,7 @@ export namespace ListPayoutsCommand {
 
   export const endpointDetails = getEndpointDetails(
     REST_API.PAYOUT.POST_LIST,
-    'post',
+    HTTP_METHOD.POST,
     'List payouts with cursor pagination',
   );
 }

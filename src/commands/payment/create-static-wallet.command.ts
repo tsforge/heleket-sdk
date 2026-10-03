@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { getEndpointDetails, REST_API } from '../../shared/api';
+import { getEndpointDetails, HTTP_METHOD, REST_API } from '../../shared/api';
 import { Currency, Network } from '../common';
 
 export const CreateStaticWalletRequestBodySchema = z
@@ -41,7 +41,7 @@ export namespace CreateStaticWalletCommand {
 
   export const endpointDetails = getEndpointDetails(
     REST_API.WALLET.POST_CREATE,
-    'post',
+    HTTP_METHOD.POST,
     'Create a static wallet for top-ups',
     'Generates a deposit address bound to your merchant on the requested network/currency.',
   );

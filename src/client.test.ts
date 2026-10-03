@@ -36,3 +36,31 @@ describe('HeleketClient', () => {
     expect(client.payout).toBe(client.payout);
   });
 });
+
+describe('HeleketClient urlBuilder injection', () => {
+  test('uses the urlBuilder passed in options for every request', async () => {
+    const mock = createFetchMock({
+      status: 200,
+      body: { state: 0, result: [] },
+    });
+    const urls: string[] = [];
+    const client = new HeleketClient({
+      paymentKey: 'p',
+      merchantUuid: 'u',
+      fetch: mock.fetch,
+      urlBuilder: {
+        build: (endpoint) => {
+          urls.push(endpoint);
+          return `https://proxy.example/${endpoint}`;
+        },
+      },
+    });
+
+    await client.payment.services();
+
+    expect(urls).toEqual(['payment/services']);
+    expect(mock.captured[0]!.url).toBe(
+      'https://proxy.example/payment/services',
+    );
+  });
+});

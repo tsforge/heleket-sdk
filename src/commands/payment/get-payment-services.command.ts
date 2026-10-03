@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { getEndpointDetails, REST_API } from '../../shared/api';
+import { getEndpointDetails, HTTP_METHOD, REST_API } from '../../shared/api';
 import { ServiceItem } from '../common';
 
 export const GetPaymentServicesRequestBodySchema = z.object({}).strict();
@@ -25,7 +25,7 @@ export namespace GetPaymentServicesCommand {
 
   export const endpointDetails = getEndpointDetails(
     REST_API.PAYMENT.POST_SERVICES,
-    'post',
+    HTTP_METHOD.POST,
     'List available payment services',
     'Returns supported networks/currencies for payments with their limits and commission rates.',
   );

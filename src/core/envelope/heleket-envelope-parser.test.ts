@@ -22,9 +22,14 @@ describe('HeleketEnvelopeParser.parse', () => {
     });
   });
 
-  test('returns Success when body is empty and status is 2xx', () => {
+  test('returns ApiError when body is empty and status is 2xx', () => {
     const res = parser.parse('', 200);
-    expect(res.kind).toBe(EnvelopeResultKind.Success);
+    expect(res.kind).toBe(EnvelopeResultKind.ApiError);
+  });
+
+  test('returns ApiError when state is missing on a 2xx response', () => {
+    const res = parser.parse(JSON.stringify({ result: { x: 1 } }), 200);
+    expect(res.kind).toBe(EnvelopeResultKind.ApiError);
   });
 
   test('returns ApiError when state != 0 even on 2xx status', () => {

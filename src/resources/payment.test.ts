@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import { HeleketClient } from '../client';
+import { TEST_WEBHOOK_TYPE } from '../commands';
 import { Md5Signer } from '../core';
 import {
   createFetchMock,
@@ -169,7 +170,7 @@ describe('PaymentResource.list and historyAll', () => {
     await client.payment.list({ cursor: 'abc' });
     const sent = mock.captured[0]!;
     expect(sent.url).toBe('https://api.heleket.com/v1/payment/list?cursor=abc');
-    expect(sent.body).toBe('{}');
+    expect(sent.body).toBe('');
   });
 
   test('list forwards dateFrom/dateTo in body and cursor in query', async () => {
@@ -331,7 +332,7 @@ describe('PaymentResource.services', () => {
 
     const sent = mock.captured[0]!;
     expect(sent.url).toBe('https://api.heleket.com/v1/payment/services');
-    expect(sent.body).toBe('{}');
+    expect(sent.body).toBe('');
   });
 });
 
@@ -429,7 +430,7 @@ describe('PaymentResource.balance', () => {
 
     const sent = mock.captured[0]!;
     expect(sent.url).toBe('https://api.heleket.com/v1/balance');
-    expect(sent.body).toBe('{}');
+    expect(sent.body).toBe('');
   });
 });
 
@@ -459,5 +460,134 @@ describe('HeleketClient payment-key gating', () => {
       fetch: createFetchMock({}).fetch,
     });
     expect(client.payment).toBe(client.payment);
+  });
+});
+
+describe('PaymentResource new endpoints', () => {
+  test('amlLinks posts order_id and returns the link list', async () => {
+    const mock = createFetchMock({
+      status: 200,
+      body: successEnvelope([
+        {
+          link: 'https://aml.example/q/1',
+          status: 'pending',
+          expired_at: '2026-12-01 00:00:00',
+        },
+      ]),
+    });
+    const client = makeClient(mock.fetch);
+
+    const res = await client.payment.amlLinks({ orderId: 'order-42' });
+
+    expect(res.isSuccess).toBe(true);
+    expect(res.data?.[0]?.status).toBe('pending');
+    const sent = mock.captured[0]!;
+    expect(sent.url).toBe('https://api.heleket.com/v1/payment/aml-links');
+    expect(sent.body).toBe('{"order_id":"order-42"}');
+  });
+
+  test('walletQr posts merchant_payment_uuid', async () => {
+    const mock = createFetchMock({
+      status: 200,
+      body: successEnvelope({ qr: 'base64' }),
+    });
+    const client = makeClient(mock.fetch);
+
+    const res = await client.payment.walletQr({
+      merchantPaymentUuid: 'a7c0caec-a594-4aaa-b1c4-77d511857594',
+    });
+
+    expect(res.isSuccess).toBe(true);
+    const sent = mock.captured[0]!;
+    expect(sent.url).toBe('https://api.heleket.com/v1/wallet/qr');
+    expect(sent.body).toBe(
+      '{"merchant_payment_uuid":"a7c0caec-a594-4aaa-b1c4-77d511857594"}',
+    );
+  });
+
+  test('blockWallet posts is_refund in snake_case', async () => {
+    const mock = createFetchMock({ status: 200, body: successEnvelope({}) });
+    const client = makeClient(mock.fetch);
+
+    await client.payment.blockWallet({ orderId: 'order-7', isRefund: true });
+
+    const sent = mock.captured[0]!;
+    expect(sent.url).toBe('https://api.heleket.com/v1/wallet/block-address');
+    expect(sent.body).toBe('{"order_id":"order-7","is_refund":true}');
+  });
+
+  test('blockWallet rejects input without uuid or orderId', async () => {
+    const mock = createFetchMock({ status: 200, body: successEnvelope({}) });
+    const client = makeClient(mock.fetch);
+
+    const res = await client.payment.blockWallet({} as never);
+
+    expect(res.isSuccess).toBe(false);
+    expect(res.code).toBe('V001');
+    expect(mock.calls).toBe(0);
+  });
+
+  test('refundBlockedWallet posts uuid and address', async () => {
+    const mock = createFetchMock({ status: 200, body: successEnvelope({}) });
+    const client = makeClient(mock.fetch);
+
+    await client.payment.refundBlockedWallet({
+      uuid: 'a7c0caec-a594-4aaa-b1c4-77d511857594',
+      address: 'TXguLRFtrAFrEDA17WuPfrxB84jVzJcNNV',
+    });
+
+    const sent = mock.captured[0]!;
+    expect(sent.url).toBe(
+      'https://api.heleket.com/v1/wallet/blocked-address-refund',
+    );
+    expect(sent.body).toBe(
+      '{"uuid":"a7c0caec-a594-4aaa-b1c4-77d511857594","address":"TXguLRFtrAFrEDA17WuPfrxB84jVzJcNNV"}',
+    );
+  });
+
+  test('testWebhook picks the endpoint by type', async () => {
+    const mock = createFetchMock([
+      { status: 200, body: successEnvelope({}) },
+      { status: 200, body: successEnvelope({}) },
+    ]);
+    const client = makeClient(mock.fetch);
+    const input = {
+      urlCallback: 'https://example.com/cb',
+      currency: 'USDT',
+      network: 'TRON',
+      status: 'paid',
+      orderId: 'order-1',
+    };
+
+    await client.payment.testWebhook(TEST_WEBHOOK_TYPE.PAYMENT, input);
+    await client.payment.testWebhook(TEST_WEBHOOK_TYPE.WALLET, input);
+
+    expect(mock.captured[0]!.url).toBe(
+      'https://api.heleket.com/v1/test-webhook/payment',
+    );
+    expect(mock.captured[1]!.url).toBe(
+      'https://api.heleket.com/v1/test-webhook/wallet',
+    );
+    expect(mock.captured[0]!.body).toContain(
+      '"url_callback":"https:\\/\\/example.com\\/cb"',
+    );
+  });
+
+  test('exchangeRates sends a GET with the currency in the path and an empty body', async () => {
+    const mock = createFetchMock({
+      status: 200,
+      body: successEnvelope([{ currency: 'USDT', rate: '1.00' }]),
+    });
+    const client = makeClient(mock.fetch);
+
+    const res = await client.payment.exchangeRates('USD');
+
+    expect(res.isSuccess).toBe(true);
+    expect(res.data).toHaveLength(1);
+    const sent = mock.captured[0]!;
+    expect(sent.method).toBe('GET');
+    expect(sent.url).toBe('https://api.heleket.com/v1/exchange-rate/USD/list');
+    expect(sent.body).toBe('');
+    expect(sent.headers['sign']).toBe(new Md5Signer(paymentKey).sign(''));
   });
 });

@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 
-import { getEndpointDetails, REST_API } from '../../shared/api';
+import { getEndpointDetails, HTTP_METHOD, REST_API } from '../../shared/api';
 import { ByUuidOrOrderId, PayoutRecord } from '../common';
 
 export const GetPayoutInfoRequestBodySchema = ByUuidOrOrderId.Schema;
@@ -25,7 +25,7 @@ export namespace GetPayoutInfoCommand {
 
   export const endpointDetails = getEndpointDetails(
     REST_API.PAYOUT.POST_INFO,
-    'post',
+    HTTP_METHOD.POST,
     'Get information about a payout',
     'Retrieves a single payout by uuid or order_id. If both are provided, order_id wins.',
   );

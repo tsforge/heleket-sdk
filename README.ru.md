@@ -22,7 +22,7 @@
 
 > **BETA — пока не production-ready.** SDK функционален, 35/35 тестов проходят на мок-транспорте, но **не проверен end-to-end против реального Heleket API под нагрузкой**. Публичный API может меняться до `1.0.0`. Пиньте точную версию в `package.json`, ожидайте breaking changes между минорами, баги — в GitHub Issues.
 
-Wire-совместимый 1:1 с официальным [`heleket/php-sdk`](https://github.com/Heleket/php-sdk) (тот же хост `https://api.heleket.com/v1`, та же MD5-подпись, те же заголовки, тот же envelope `{state, result}`) — и **радикально функциональнее** на любой другой оси. См. [подробное сравнение](#vs-heleketphp-sdk).
+Wire-совместимый 1:1 с официальным [`heleket/php-sdk`](https://github.com/Heleket/php-sdk) (тот же хост `https://api.heleket.com/v1`, та же MD5-подпись, те же заголовки, тот же envelope `{state, result}`). Отличия от PHP-SDK перечислены в [подробном сравнении](#vs-heleketphp-sdk).
 
 ---
 
@@ -35,6 +35,7 @@ Wire-совместимый 1:1 с официальным [`heleket/php-sdk`](ht
 - [Быстрый старт](#быстрый-старт)
 - [Рецепт: принять первый платёж end-to-end](#рецепт-принять-первый-платёж-end-to-end)
 - [Статусы платежей и выплат](#статусы-платежей-и-выплат)
+- [Константы и типы](#константы-и-типы)
 - [Поля webhook payload](#поля-webhook-payload)
 - [Идемпотентность и дедуп](#идемпотентность-и-дедуп)
 - [Кулинарная книга ошибок](#кулинарная-книга-ошибок)
@@ -92,7 +93,7 @@ Wire-совместимый 1:1 с официальным [`heleket/php-sdk`](ht
 | **Типы**                          | нет (PHP 5.6 совместимость)                                                                                             | полный TypeScript, `strict` + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes`                                                                                    |
 | **Автокомплит сетей/валют**       | просто `string`                                                                                                         | неймспейсы `Network.Value` / `Currency.Value` — IDE подсказывает известные, любая новая строка тоже принимается (трюк `(string & {})`)                                     |
 | **Метаданные endpoint'ов**        | нет                                                                                                                     | константы `REST_API.*` + `endpointDetails` на команду (controller URL, метод, описание) — для OpenAPI/codegen                                                              |
-| **Подменяемость внутренностей**   | `final` классы, хардкод URL                                                                                             | каждая зависимость за интерфейсом: `IHttpClient`, `IRetryPolicy`, `ICaseConverter`, `IEnvelopeParser`, `ISigner` — DI через опции конструктора                             |
+| **Подменяемость внутренностей**   | `final` классы, хардкод URL                                                                                             | каждая зависимость за интерфейсом: `IHttpClient`, `IRetryPolicy`, `ICaseConverter`, `IEnvelopeParser`, `ISigner`, `IUrlBuilder` — DI через опции конструктора              |
 | **Тесты**                         | нет в репо                                                                                                              | 35 unit-тестов с мок-транспортом, без реальной сети                                                                                                                        |
 | **Дистрибуция**                   | n/a (Composer)                                                                                                          | dual ESM + CJS, парные `.d.ts` / `.d.cts`, ноль runtime-зависимостей кроме zod                                                                                             |
 | **Строк кода**                    | ~150                                                                                                                    | ~1.7K включая тесты, схемы, типы                                                                                                                                           |
@@ -252,7 +253,7 @@ app.post('/heleket/webhook', (req, res) => {
 
 ```ts
 import express from 'express';
-import { HeleketClient } from '@tsforge7/heleket-sdk';
+import { HeleketClient, PAYMENT_STATUS } from '@tsforge7/heleket-sdk';
 
 const heleket = new HeleketClient({
   merchantUuid: process.env.HELEKET_MERCHANT_UUID!,
@@ -317,7 +318,10 @@ app.post('/heleket/webhook', async (req, res) => {
     return res.sendStatus(200); // уже обработано — ack и забыли
   }
 
-  if (w.status === 'paid' || w.status === 'paid_over') {
+  if (
+    w.status === PAYMENT_STATUS.PAID ||
+    w.status === PAYMENT_STATUS.PAID_OVER
+  ) {
     await db.orders.update(w.order_id, {
       status: 'paid',
       paidAmount: w.payment_amount,
@@ -326,9 +330,9 @@ app.post('/heleket/webhook', async (req, res) => {
     });
     // ... выполнить заказ, уведомить клиента и т.д.
   } else if (
-    w.status === 'fail' ||
-    w.status === 'cancel' ||
-    w.status === 'system_fail'
+    w.status === PAYMENT_STATUS.FAIL ||
+    w.status === PAYMENT_STATUS.CANCEL ||
+    w.status === PAYMENT_STATUS.SYSTEM_FAIL
   ) {
     await db.orders.update(w.order_id, { status: 'failed' });
   }
@@ -347,7 +351,7 @@ app.get('/orders/:orderId', async (req, res) => {
     const info = await heleket.payment.info({ orderId: req.params.orderId });
     if (
       info.isSuccess &&
-      info.data?.status === 'paid' &&
+      info.data?.status === PAYMENT_STATUS.PAID &&
       order.status !== 'paid'
     ) {
       await db.orders.update(req.params.orderId, { status: 'paid' });
@@ -369,7 +373,7 @@ app.listen(3000);
 
 ## Статусы платежей и выплат
 
-Эти значения вы увидите в `res.data.status` (и в `status` webhook'а). Верифицировано по официальной доке ([статусы платежей](https://doc.heleket.com/ru/methods/payments/payment-statuses), [статусы выплат](https://doc.heleket.com/ru/methods/payouts/payout-statuses)) и выставлено как `PaymentStatus.KNOWN` / `PayoutStatus.KNOWN` с IDE-автокомплитом.
+Эти значения вы увидите в `res.data.status` (и в `status` webhook'а). Верифицировано по официальной доке ([статусы платежей](https://doc.heleket.com/ru/methods/payments/payment-statuses), [статусы выплат](https://doc.heleket.com/ru/methods/payouts/payout-statuses)) и выставлено как константы `PAYMENT_STATUS` / `PAYOUT_STATUS` (см. [Константы и типы](#константы-и-типы)).
 
 **Статусы платежей / инвойсов (14):**
 
@@ -404,23 +408,18 @@ app.listen(3000);
 > Только **`is_final: true`** — единственный безопасный сигнал чтобы зафиксировать состояние. Всё остальное — in-flight и может ещё измениться.
 
 ```ts
-import { PaymentStatus, PayoutStatus } from '@tsforge7/heleket-sdk';
+import { PAYMENT_STATUS, PAYMENT_STATUS_VALUES } from '@tsforge7/heleket-sdk';
 
-// IDE автокомплитит все 14 статусов когда вводишь 'p'..., 'c'..., и т.д.:
-if (record.status === 'paid' || record.status === 'paid_over') {
+// IDE автокомплитит все 14 статусов когда вводишь PAYMENT_STATUS.:
+if (
+  record.status === PAYMENT_STATUS.PAID ||
+  record.status === PAYMENT_STATUS.PAID_OVER
+) {
   /* ... */
 }
 
 // Итерация по полному списку в runtime:
-for (const s of PaymentStatus.KNOWN) {
-  /* ... */
-}
-
-// Строгий тип параметра:
-function handlePaymentStatus(status: PaymentStatus.Value) {
-  /* ... */
-}
-function handleKnownOnly(status: PaymentStatus.Known) {
+for (const s of PAYMENT_STATUS_VALUES) {
   /* ... */
 }
 ```
@@ -575,7 +574,7 @@ switch (code) {
 - одну `IRetryPolicy` (по умолчанию `ExponentialBackoffRetryPolicy`),
 - один `ICaseConverter` (по умолчанию `SnakeCaseConverter`),
 - один `IEnvelopeParser` (по умолчанию `HeleketEnvelopeParser`),
-- один `UrlBuilder`,
+- один `IUrlBuilder` (по умолчанию `UrlBuilder`),
 - `signerFactory` (по умолчанию `(key) => new Md5Signer(key)`).
 
 Resources (`payment`, `payout`) **создаются лениво** при первом обращении, каждый со своим `CommandExecutor` и `ISigner`, привязанным к соответствующему ключу. Webhook-верификаторы (`paymentWebhook`, `payoutWebhook`) тоже ленивые и используют тот же per-key signer.
@@ -610,6 +609,7 @@ new HeleketClient({
   retryPolicy?:    IRetryPolicy,
   caseConverter?:  ICaseConverter,
   envelopeParser?: IEnvelopeParser,
+  urlBuilder?:    IUrlBuilder,
   signerFactory?:  (apiKey: string) => ISigner,
 });
 ```
@@ -668,16 +668,22 @@ ERRORS.API_ERROR.httpCode; // 502 — рекомендованный HTTP-код
 
 `heleket.payment` — это `PaymentResource`. Все методы принимают опциональный `AbortSignal` последним аргументом.
 
-| Метод                | Описание                                           |
-| -------------------- | -------------------------------------------------- |
-| `create(input)`      | Создать инвойс                                     |
-| `info(input)`        | Получить инвойс по `uuid` или `orderId`            |
-| `services()`         | Доступные сети/валюты/лимиты/комиссии для платежей |
-| `list(input?)`       | Страница инвойсов (курсорная пагинация)            |
-| `historyAll(input?)` | Async-итератор по всем инвойсам                    |
-| `resend(input)`      | Принудительно повторить webhook                    |
-| `wallet(input)`      | Создать статический депозитный кошелёк             |
-| `balance()`          | Баланс merchant + user                             |
+| Метод                        | Описание                                           |
+| ---------------------------- | -------------------------------------------------- |
+| `create(input)`              | Создать инвойс                                     |
+| `info(input)`                | Получить инвойс по `uuid` или `orderId`            |
+| `services()`                 | Доступные сети/валюты/лимиты/комиссии для платежей |
+| `list(input?)`               | Страница инвойсов (курсорная пагинация)            |
+| `historyAll(input?)`         | Async-итератор по всем инвойсам                    |
+| `resend(input)`              | Принудительно повторить webhook                    |
+| `wallet(input)`              | Создать статический депозитный кошелёк             |
+| `balance()`                  | Баланс merchant + user                             |
+| `amlLinks(input)`            | AML-ссылки анкеты для заблокированного платежа     |
+| `walletQr(input)`            | QR-код статического кошелька                       |
+| `blockWallet(input)`         | Заблокировать статический кошелёк                  |
+| `refundBlockedWallet(input)` | Вернуть средства с заблокированного кошелька       |
+| `testWebhook(type, input)`   | Отправить тестовый webhook (`TEST_WEBHOOK_TYPE`)   |
+| `exchangeRates(currency)`    | Курсы валют для фиатной валюты                     |
 
 ### `payment.create(input)`
 
@@ -790,13 +796,17 @@ if (res.isSuccess) {
 
 `heleket.payout` — это `PayoutResource`.
 
-| Метод                | Описание                                 |
-| -------------------- | ---------------------------------------- |
-| `create(input)`      | Отправить выплату                        |
-| `info(input)`        | Получить выплату по `uuid` или `orderId` |
-| `services()`         | Сети/валюты для выплат                   |
-| `list(input?)`       | Страница выплат                          |
-| `historyAll(input?)` | Async-итератор по всем выплатам          |
+| Метод                        | Описание                                            |
+| ---------------------------- | --------------------------------------------------- |
+| `create(input)`              | Отправить выплату                                   |
+| `info(input)`                | Получить выплату по `uuid` или `orderId`            |
+| `services()`                 | Сети/валюты для выплат                              |
+| `list(input?)`               | Страница выплат                                     |
+| `historyAll(input?)`         | Async-итератор по всем выплатам                     |
+| `refund(input)`              | Возврат оплаченного инвойса (подпись payout-ключом) |
+| `calculateWithdrawal(input)` | Комиссии для гипотетической выплаты                 |
+| `transferToPersonal(input)`  | Перевод на личный баланс                            |
+| `transferToBusiness(input)`  | Перевод на бизнес-баланс                            |
 
 ### `payout.create(input)`
 
@@ -949,16 +959,59 @@ const res = await promise;
 
 Пользовательский signal комбинируется с внутренним таймаут-signal'ом — побеждает тот, что сработает первым.
 
+## Константы и типы
+
+> **Не пишите свои строки статусов.** Заменяйте магические строки (`status === 'paid'`) константами SDK — `PAYMENT_STATUS.PAID`, `PAYOUT_STATUS.PAID`. Когда Heleket поменяет статусы, обновится SDK, а не ваш код.
+
+| Константа           | Тип                | Guard                         | Значения                       |
+| ------------------- | ------------------ | ----------------------------- | ------------------------------ |
+| `PAYMENT_STATUS`    | `TPaymentStatus`   | `isPaymentStatusGuard(value)` | `PAYMENT_STATUS_VALUES` — 14   |
+| `PAYOUT_STATUS`     | `TPayoutStatus`    | `isPayoutStatusGuard(value)`  | `PAYOUT_STATUS_VALUES` — 6     |
+| `AML_LINK_STATUS`   | `TAmlLinkStatus`   | `isAmlLinkStatusGuard(value)` | `AML_LINK_STATUS_VALUES` — 4   |
+| `TEST_WEBHOOK_TYPE` | `TTestWebhookType` | —                             | `TEST_WEBHOOK_TYPE_VALUES` — 2 |
+| `HTTP_METHOD`       | `THttpMethod`      | —                             | `GET`, `POST`                  |
+
+```ts
+import {
+  PAYMENT_STATUS,
+  PAYMENT_STATUS_VALUES,
+  isPaymentStatusGuard,
+  type TPaymentStatus,
+} from '@tsforge7/heleket-sdk';
+
+// Сравнивайте с константами, а не со строками:
+if (record.status === PAYMENT_STATUS.PAID) {
+  /* ... */
+}
+
+// Сузить неизвестную строку из webhook или ответа API:
+if (isPaymentStatusGuard(record.status)) {
+  // здесь record.status имеет тип TPaymentStatus
+}
+
+// Все известные значения в runtime:
+for (const s of PAYMENT_STATUS_VALUES) {
+  /* ... */
+}
+
+// Типизированный параметр:
+function handlePaymentStatus(status: TPaymentStatus) {
+  /* ... */
+}
+```
+
+> `isPaymentStatusGuard` проверяет только значения, которые документированы сейчас. Если Heleket добавит новый статус, guard вернёт `false`, пока SDK не обновят, но сырая строка останется в `status` записи.
+
+Для каждой группы статусов есть хелперы `isXxxFinal(status)` и `isXxxSuccessful(status)`, повторяющие PHP-SDK: `isPaymentStatusFinal`, `isPaymentStatusSuccessful`, `isPayoutStatusFinal`, `isPayoutStatusSuccessful`, `isAmlLinkStatusFinal`, `isAmlLinkStatusSuccessful`. Используйте их вместо собственных списков статусов.
+
 ## Типизированные enum'ы
 
-Каждое поле Heleket с фиксированным набором значений оформлено как неймспейс с одинаковой структурой — `KNOWN` (readonly массив), `Known` (строгий union), `Value` (loose union с трюком `(string & {})`), `Schema` (zod-схема, которую SDK использует внутри). Все шесть дают **автокомплит в IDE без жёсткой фиксации списка** — если Heleket добавит новое значение раньше чем SDK, любая строка тоже пройдёт.
+`Currency`, `Network`, `CourseSource` и `PayoutPriority` оформлены как неймспейсы с одинаковой структурой — `KNOWN` (readonly массив), `Known` (строгий union), `Value` (loose union с трюком `(string & {})`), `Schema` (zod-схема, которую SDK использует внутри). Все четыре дают **автокомплит в IDE без жёсткой фиксации списка** — если Heleket добавит новое значение раньше чем SDK, любая строка тоже пройдёт. Статусы платежей и выплат — обычные константы, см. [Константы и типы](#константы-и-типы).
 
 | Namespace        | Источник                                                                                                                                                              | Значения                                                                                           |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `Currency`       | примеры из `/payment/services`                                                                                                                                        | 17 — USDT, USDC, BUSD, DAI, VERSE, CGPT, BTC, ETH, BNB, TRX, LTC, BCH, DASH, DOGE, MATIC, TON, XMR |
 | `Network`        | примеры из `/payment/services`                                                                                                                                        | 11 — ETH, TRON, BSC, BTC, LTC, BCH, DASH, DOGE, POLYGON, TON, XMR                                  |
-| `PaymentStatus`  | [`/payment-statuses`](https://doc.heleket.com/ru/methods/payments/payment-statuses)                                                                                   | 14 — см. таблицу статусов выше                                                                     |
-| `PayoutStatus`   | [`/payout-statuses`](https://doc.heleket.com/ru/methods/payouts/payout-statuses)                                                                                      | 6 — см. таблицу статусов выше                                                                      |
 | `CourseSource`   | [`/creating-invoice`](https://doc.heleket.com/ru/methods/payments/creating-invoice), [`/creating-payout`](https://doc.heleket.com/ru/methods/payouts/creating-payout) | 4 — `Binance`, `BinanceP2P`, `Exmo`, `Kucoin`                                                      |
 | `PayoutPriority` | [`/creating-payout`](https://doc.heleket.com/ru/methods/payouts/creating-payout)                                                                                      | 4 — `recommended`, `economy`, `high`, `highest` (только BTC, ETH, Polygon, BSC)                    |
 
@@ -968,8 +1021,6 @@ const res = await promise;
 import {
   Currency,
   Network,
-  PaymentStatus,
-  PayoutStatus,
   CourseSource,
   PayoutPriority,
 } from '@tsforge7/heleket-sdk';
@@ -977,19 +1028,16 @@ import {
 // Runtime — это та же схема, которую SDK применяет к полям запросов:
 Currency.Schema.parse('USDT');
 Network.Schema.parse('TRON');
-PaymentStatus.Schema.parse('paid');
 
 // Типы — автокомплит на известных значениях, fallback на любую строку:
 const c: Currency.Value = 'USDT'; // подсказывает USDT, USDC, BUSD, ...
 const c2: Currency.Value = 'NEW_COIN'; // тоже принимается
 const c3: Currency.Known = 'USDT'; // строго — только известные
-const s: PaymentStatus.Value = 'paid';
 const p: PayoutPriority.Value = 'recommended';
 const cs: CourseSource.Value = 'Binance';
 
 // Снимки (runtime массивы) — удобно для дропдаунов, валидации, exhaustive switch:
 Currency.KNOWN; // readonly ['USDT', 'USDC', ...]
-PaymentStatus.KNOWN; // readonly ['paid', 'paid_over', ...]
 CourseSource.KNOWN; // readonly ['Binance', 'BinanceP2P', 'Exmo', 'Kucoin']
 PayoutPriority.KNOWN; // readonly ['recommended', 'economy', 'high', 'highest']
 ```
@@ -1051,19 +1099,29 @@ namespace XxxCommand {
 
 Доступные команды:
 
-| Namespace                     | Путь                    |
-| ----------------------------- | ----------------------- |
-| `CreatePaymentCommand`        | `POST payment`          |
-| `GetPaymentInfoCommand`       | `POST payment/info`     |
-| `ListPaymentsCommand`         | `POST payment/list`     |
-| `GetPaymentServicesCommand`   | `POST payment/services` |
-| `ResendPaymentWebhookCommand` | `POST payment/resend`   |
-| `CreateStaticWalletCommand`   | `POST wallet`           |
-| `GetBalanceCommand`           | `POST balance`          |
-| `CreatePayoutCommand`         | `POST payout`           |
-| `GetPayoutInfoCommand`        | `POST payout/info`      |
-| `ListPayoutsCommand`          | `POST payout/list`      |
-| `GetPayoutServicesCommand`    | `POST payout/services`  |
+| Namespace                     | Путь                                   |
+| ----------------------------- | -------------------------------------- |
+| `CreatePaymentCommand`        | `POST payment`                         |
+| `GetPaymentInfoCommand`       | `POST payment/info`                    |
+| `ListPaymentsCommand`         | `POST payment/list`                    |
+| `GetPaymentServicesCommand`   | `POST payment/services`                |
+| `ResendPaymentWebhookCommand` | `POST payment/resend`                  |
+| `CreateStaticWalletCommand`   | `POST wallet`                          |
+| `GetBalanceCommand`           | `POST balance`                         |
+| `GetAmlLinksCommand`          | `POST payment/aml-links`               |
+| `GenerateWalletQrCommand`     | `POST wallet/qr`                       |
+| `BlockStaticWalletCommand`    | `POST wallet/block-address`            |
+| `RefundBlockedWalletCommand`  | `POST wallet/blocked-address-refund`   |
+| `TestWebhookCommand`          | `POST test-webhook/payment`, `/wallet` |
+| `GetExchangeRatesCommand`     | `GET exchange-rate/{currency}/list`    |
+| `CreatePayoutCommand`         | `POST payout`                          |
+| `GetPayoutInfoCommand`        | `POST payout/info`                     |
+| `ListPayoutsCommand`          | `POST payout/list`                     |
+| `GetPayoutServicesCommand`    | `POST payout/services`                 |
+| `RefundPaymentCommand`        | `POST payment/refund`                  |
+| `CalculateWithdrawalCommand`  | `POST payout/calculate`                |
+| `TransferToPersonalCommand`   | `POST transfer/to-personal`            |
+| `TransferToBusinessCommand`   | `POST transfer/to-business`            |
 
 ## Dependency injection — подмена внутренностей
 
@@ -1121,7 +1179,7 @@ new HeleketClient({
 });
 ```
 
-Тот же паттерн для `ICaseConverter` и `IEnvelopeParser`.
+Тот же паттерн для `ICaseConverter`, `IEnvelopeParser` и `IUrlBuilder`.
 
 ## Архитектура
 

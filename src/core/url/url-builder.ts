@@ -1,4 +1,6 @@
-export class UrlBuilder {
+import type { IUrlBuilder } from './interfaces';
+
+export class UrlBuilder implements IUrlBuilder {
   private readonly baseUrl: string;
 
   constructor(baseUrl: string) {

@@ -13,7 +13,8 @@ export {
   REST_API,
   getEndpointDetails,
 } from './shared/api/lib/contract';
-export type { HttpMethod, IEndpointDetails } from './shared/api/lib/contract';
+export type { THttpMethod, IEndpointDetails } from './shared/api/lib/contract';
+export { HTTP_METHOD } from './shared/api/lib/contract';
 export * from './shared/api/controllers';
 
 export { ERRORS, HEADERS, CONTENT_TYPE_JSON } from './constants';

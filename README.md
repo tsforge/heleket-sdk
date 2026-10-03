@@ -22,7 +22,7 @@ Type-safe Node.js / TypeScript SDK for the [Heleket](https://heleket.com) crypto
 
 > **BETA — not production-ready yet.** This SDK is functional and 35/35 tests pass against a mock transport, but it has not been validated end-to-end against the real Heleket API at scale. The public API may still change before `1.0.0`. Pin an exact version in `package.json`, expect breaking changes between minors, and please report issues on GitHub.
 
-Wire-compatible 1:1 with the official [`heleket/php-sdk`](https://github.com/Heleket/php-sdk) (same `https://api.heleket.com/v1` host, same MD5 signature, same headers, same `{state, result}` envelope) — and **dramatically more capable** on every other axis. See the [side-by-side comparison](#vs-heleketphp-sdk).
+Wire-compatible 1:1 with the official [`heleket/php-sdk`](https://github.com/Heleket/php-sdk) (same `https://api.heleket.com/v1` host, same MD5 signature, same headers, same `{state, result}` envelope). Differences from the PHP SDK are listed in the [side-by-side comparison](#vs-heleketphp-sdk).
 
 ---
 
@@ -48,7 +48,8 @@ Wire-compatible 1:1 with the official [`heleket/php-sdk`](https://github.com/Hel
 - [Webhook verification](#webhook-verification)
 - [Retries & timeouts](#retries--timeouts)
 - [AbortSignal cancellation](#abortsignal-cancellation)
-- [Typed enums (Currency / Network / Status / CourseSource / PayoutPriority)](#typed-enums)
+- [Constants and types](#constants-and-types)
+- [Typed enums (Currency / Network / CourseSource / PayoutPriority)](#typed-enums)
 - [Working with command namespaces directly](#working-with-command-namespaces-directly)
 - [Dependency injection — replacing internals](#dependency-injection--replacing-internals)
 - [Architecture](#architecture)
@@ -75,27 +76,27 @@ Wire-compatible 1:1 with the official [`heleket/php-sdk`](https://github.com/Hel
 
 Same wire protocol, very different ergonomics. The PHP SDK is ~150 lines of cURL + `throw RequestBuilderException`. This SDK is a full client library with retries, validation, webhook verification, async iterators, DI, and types.
 
-|                                    | `heleket/php-sdk` v1.0.0                                                                       | `heleket-sdk` (this package)                                                                                                                                  |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Wire compatibility**             | reference                                                                                      | identical (host, sign, headers, envelope)                                                                                                                     |
-| **Endpoints exposed**              | 9 (7 payment + 2 payout)                                                                       | **11** (+ `payout.list`, `payout.services`)                                                                                                                   |
-| **HTTP transport**                 | cURL                                                                                           | native `fetch` (Node 18+)                                                                                                                                     |
-| **Pagination**                     | `history($page = 1)` — passes integer as cursor (broken past page 1; Heleket cursor is a hash) | `list({cursor: nextCursor})` — correct; plus `historyAll()` async iterator                                                                                    |
-| **Webhook verification**           | not in SDK — DIY                                                                               | `paymentWebhook.verify()` / `payoutWebhook.verify()`, constant-time `timingSafeEqual`                                                                         |
-| **Retries on 5xx / 429 / network** | none                                                                                           | exponential backoff with jitter, configurable                                                                                                                 |
-| **Timeouts**                       | cURL default (often ∞)                                                                         | 30s default, configurable per client                                                                                                                          |
-| **Cancellation**                   | none                                                                                           | `AbortSignal` per request, composed with internal timeout                                                                                                     |
-| **Input validation**               | none                                                                                           | `zod` strict schema per endpoint                                                                                                                              |
-| **Response parsing**               | raw associative array                                                                          | `zod` parsed (loose — forward-compatible with new Heleket fields)                                                                                             |
-| **Naming convention**              | snake_case (Heleket wire) leaks into your code                                                 | camelCase outside, snake_case on the wire (auto-converted)                                                                                                    |
-| **Error reporting**                | throws `RequestBuilderException` with `getMethod()` and `getErrors()`                          | returns `ICommandResponse<T>` with stable codes (`V001`/`A001`/`P001`/`N001`/`T001`/`W001`/`U001`), `message`, `errors`, and a suggested `httpCode` per error |
-| **Types**                          | none (PHP 5.6 compat)                                                                          | full TypeScript, `strict` + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes`                                                                         |
-| **Network/Currency autocomplete**  | plain `string`                                                                                 | `Network.Value` / `Currency.Value` namespaces — IDE suggests known values, any new string still accepted (`(string & {})` trick)                              |
-| **Endpoint metadata**              | none                                                                                           | `REST_API.*` constants + `endpointDetails` per command (controller URL, method, description) for OpenAPI/codegen                                              |
-| **Internals replaceable**          | `final` classes, hardcoded URL                                                                 | every collaborator behind an interface: `IHttpClient`, `IRetryPolicy`, `ICaseConverter`, `IEnvelopeParser`, `ISigner` — DI via constructor options            |
-| **Test suite**                     | none in repo                                                                                   | 35 unit tests, mock fetch transport, no real network needed                                                                                                   |
-| **Distribution**                   | n/a (Composer)                                                                                 | dual ESM + CJS bundle, matched `.d.ts` / `.d.cts`, zero non-zod runtime deps                                                                                  |
-| **Lines of code**                  | ~150                                                                                           | ~1.7K incl. tests, schemas, types                                                                                                                             |
+|                                    | `heleket/php-sdk` v1.0.0                                                                       | `heleket-sdk` (this package)                                                                                                                                      |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Wire compatibility**             | reference                                                                                      | identical (host, sign, headers, envelope)                                                                                                                         |
+| **Endpoints exposed**              | 9 (7 payment + 2 payout)                                                                       | **11** (+ `payout.list`, `payout.services`)                                                                                                                       |
+| **HTTP transport**                 | cURL                                                                                           | native `fetch` (Node 18+)                                                                                                                                         |
+| **Pagination**                     | `history($page = 1)` — passes integer as cursor (broken past page 1; Heleket cursor is a hash) | `list({cursor: nextCursor})` — correct; plus `historyAll()` async iterator                                                                                        |
+| **Webhook verification**           | not in SDK — DIY                                                                               | `paymentWebhook.verify()` / `payoutWebhook.verify()`, constant-time `timingSafeEqual`                                                                             |
+| **Retries on 5xx / 429 / network** | none                                                                                           | exponential backoff with jitter, configurable                                                                                                                     |
+| **Timeouts**                       | cURL default (often ∞)                                                                         | 30s default, configurable per client                                                                                                                              |
+| **Cancellation**                   | none                                                                                           | `AbortSignal` per request, composed with internal timeout                                                                                                         |
+| **Input validation**               | none                                                                                           | `zod` strict schema per endpoint                                                                                                                                  |
+| **Response parsing**               | raw associative array                                                                          | `zod` parsed (loose — forward-compatible with new Heleket fields)                                                                                                 |
+| **Naming convention**              | snake_case (Heleket wire) leaks into your code                                                 | camelCase outside, snake_case on the wire (auto-converted)                                                                                                        |
+| **Error reporting**                | throws `RequestBuilderException` with `getMethod()` and `getErrors()`                          | returns `ICommandResponse<T>` with stable codes (`V001`/`A001`/`P001`/`N001`/`T001`/`W001`/`U001`), `message`, `errors`, and a suggested `httpCode` per error     |
+| **Types**                          | none (PHP 5.6 compat)                                                                          | full TypeScript, `strict` + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes`                                                                             |
+| **Network/Currency autocomplete**  | plain `string`                                                                                 | `Network.Value` / `Currency.Value` namespaces — IDE suggests known values, any new string still accepted (`(string & {})` trick)                                  |
+| **Endpoint metadata**              | none                                                                                           | `REST_API.*` constants + `endpointDetails` per command (controller URL, method, description) for OpenAPI/codegen                                                  |
+| **Internals replaceable**          | `final` classes, hardcoded URL                                                                 | every collaborator behind an interface: `IHttpClient`, `IRetryPolicy`, `ICaseConverter`, `IEnvelopeParser`, `ISigner`, `IUrlBuilder` — DI via constructor options |
+| **Test suite**                     | none in repo                                                                                   | 35 unit tests, mock fetch transport, no real network needed                                                                                                       |
+| **Distribution**                   | n/a (Composer)                                                                                 | dual ESM + CJS bundle, matched `.d.ts` / `.d.cts`, zero non-zod runtime deps                                                                                      |
+| **Lines of code**                  | ~150                                                                                           | ~1.7K incl. tests, schemas, types                                                                                                                                 |
 
 ### Side-by-side: create a payment
 
@@ -252,7 +253,7 @@ The full happy path for an online checkout: customer hits "Pay", you redirect to
 
 ```ts
 import express from 'express';
-import { HeleketClient } from '@tsforge7/heleket-sdk';
+import { HeleketClient, PAYMENT_STATUS } from '@tsforge7/heleket-sdk';
 
 const heleket = new HeleketClient({
   merchantUuid: process.env.HELEKET_MERCHANT_UUID!,
@@ -317,7 +318,10 @@ app.post('/heleket/webhook', async (req, res) => {
     return res.sendStatus(200); // already processed — ack and move on
   }
 
-  if (w.status === 'paid' || w.status === 'paid_over') {
+  if (
+    w.status === PAYMENT_STATUS.PAID ||
+    w.status === PAYMENT_STATUS.PAID_OVER
+  ) {
     await db.orders.update(w.order_id, {
       status: 'paid',
       paidAmount: w.payment_amount,
@@ -326,9 +330,9 @@ app.post('/heleket/webhook', async (req, res) => {
     });
     // ... fulfil the order, notify the customer, etc.
   } else if (
-    w.status === 'fail' ||
-    w.status === 'cancel' ||
-    w.status === 'system_fail'
+    w.status === PAYMENT_STATUS.FAIL ||
+    w.status === PAYMENT_STATUS.CANCEL ||
+    w.status === PAYMENT_STATUS.SYSTEM_FAIL
   ) {
     await db.orders.update(w.order_id, { status: 'failed' });
   }
@@ -347,7 +351,7 @@ app.get('/orders/:orderId', async (req, res) => {
     const info = await heleket.payment.info({ orderId: req.params.orderId });
     if (
       info.isSuccess &&
-      info.data?.status === 'paid' &&
+      info.data?.status === PAYMENT_STATUS.PAID &&
       order.status !== 'paid'
     ) {
       await db.orders.update(req.params.orderId, { status: 'paid' });
@@ -369,7 +373,7 @@ Key things this recipe does right:
 
 ## Payment & payout status reference
 
-These are the statuses you'll see in `res.data.status` (and in webhook `status`). Verified against the official docs ([payment statuses](https://doc.heleket.com/ru/methods/payments/payment-statuses), [payout statuses](https://doc.heleket.com/ru/methods/payouts/payout-statuses)) and exposed as `PaymentStatus.KNOWN` / `PayoutStatus.KNOWN` with IDE autocomplete.
+These are the statuses you'll see in `res.data.status` (and in webhook `status`). Verified against the official docs ([payment statuses](https://doc.heleket.com/ru/methods/payments/payment-statuses), [payout statuses](https://doc.heleket.com/ru/methods/payouts/payout-statuses)) and exposed as the constants `PAYMENT_STATUS` / `PAYOUT_STATUS` (see [Constants and types](#constants-and-types)).
 
 **Payment / invoice statuses (14):**
 
@@ -404,23 +408,18 @@ These are the statuses you'll see in `res.data.status` (and in webhook `status`)
 > Always treat **`is_final: true`** as the only safe signal to commit to a state change. Anything else is in-flight and may still change.
 
 ```ts
-import { PaymentStatus, PayoutStatus } from '@tsforge7/heleket-sdk';
+import { PAYMENT_STATUS, PAYMENT_STATUS_VALUES } from '@tsforge7/heleket-sdk';
 
-// IDE autocompletes all 14 statuses when typing 'p'..., 'c'..., etc:
-if (record.status === 'paid' || record.status === 'paid_over') {
+// IDE autocompletes all 14 statuses when typing PAYMENT_STATUS.:
+if (
+  record.status === PAYMENT_STATUS.PAID ||
+  record.status === PAYMENT_STATUS.PAID_OVER
+) {
   /* ... */
 }
 
 // Iterate over the full list if you need it at runtime:
-for (const s of PaymentStatus.KNOWN) {
-  /* ... */
-}
-
-// Strict-typed parameter:
-function handlePaymentStatus(status: PaymentStatus.Value) {
-  /* ... */
-}
-function handleKnownOnly(status: PaymentStatus.Known) {
+for (const s of PAYMENT_STATUS_VALUES) {
   /* ... */
 }
 ```
@@ -574,7 +573,7 @@ Tip: read `res.errors` too — when Heleket sends per-field validation errors, t
 - one `IRetryPolicy` (default `ExponentialBackoffRetryPolicy`),
 - one `ICaseConverter` (default `SnakeCaseConverter`),
 - one `IEnvelopeParser` (default `HeleketEnvelopeParser`),
-- one `UrlBuilder`,
+- one `IUrlBuilder` (default `UrlBuilder`),
 - a `signerFactory` (default `(key) => new Md5Signer(key)`).
 
 Resources (`payment`, `payout`) are constructed **lazily** on first access, each with its own `CommandExecutor` and `ISigner` bound to the corresponding API key. Webhook verifiers (`paymentWebhook`, `payoutWebhook`) are also lazy and use the same per-key signer.
@@ -609,6 +608,7 @@ new HeleketClient({
   retryPolicy?:    IRetryPolicy,
   caseConverter?:  ICaseConverter,
   envelopeParser?: IEnvelopeParser,
+  urlBuilder?:    IUrlBuilder,
   signerFactory?:  (apiKey: string) => ISigner,
 });
 ```
@@ -667,16 +667,22 @@ ERRORS.API_ERROR.httpCode; // 502 — suggested HTTP code if you're forwarding t
 
 `heleket.payment` is a `PaymentResource`. Every method accepts an optional `AbortSignal` as the last argument.
 
-| Method               | Description                                         |
-| -------------------- | --------------------------------------------------- |
-| `create(input)`      | Create a payment invoice                            |
-| `info(input)`        | Get invoice by `uuid` or `orderId`                  |
-| `services()`         | Networks/currencies/limits/commissions for payments |
-| `list(input?)`       | Page of invoices (cursor pagination)                |
-| `historyAll(input?)` | Async iterator over all invoices                    |
-| `resend(input)`      | Force webhook re-delivery for an invoice            |
-| `wallet(input)`      | Create a static deposit wallet                      |
-| `balance()`          | Merchant + user balances                            |
+| Method                       | Description                                         |
+| ---------------------------- | --------------------------------------------------- |
+| `create(input)`              | Create a payment invoice                            |
+| `info(input)`                | Get invoice by `uuid` or `orderId`                  |
+| `services()`                 | Networks/currencies/limits/commissions for payments |
+| `list(input?)`               | Page of invoices (cursor pagination)                |
+| `historyAll(input?)`         | Async iterator over all invoices                    |
+| `resend(input)`              | Force webhook re-delivery for an invoice            |
+| `wallet(input)`              | Create a static deposit wallet                      |
+| `balance()`                  | Merchant + user balances                            |
+| `amlLinks(input)`            | AML questionnaire links for a blocked payment       |
+| `walletQr(input)`            | QR code for a static wallet                         |
+| `blockWallet(input)`         | Block a static wallet                               |
+| `refundBlockedWallet(input)` | Refund funds locked on a blocked wallet             |
+| `testWebhook(type, input)`   | Send a test webhook (`TEST_WEBHOOK_TYPE`)           |
+| `exchangeRates(currency)`    | Exchange rates for a fiat currency                  |
 
 ### `payment.create(input)`
 
@@ -789,13 +795,17 @@ if (res.isSuccess) {
 
 `heleket.payout` is a `PayoutResource`.
 
-| Method               | Description                       |
-| -------------------- | --------------------------------- |
-| `create(input)`      | Send a payout                     |
-| `info(input)`        | Get payout by `uuid` or `orderId` |
-| `services()`         | Payout networks/currencies        |
-| `list(input?)`       | Page of payouts                   |
-| `historyAll(input?)` | Async iterator over all payouts   |
+| Method                       | Description                                    |
+| ---------------------------- | ---------------------------------------------- |
+| `create(input)`              | Send a payout                                  |
+| `info(input)`                | Get payout by `uuid` or `orderId`              |
+| `services()`                 | Payout networks/currencies                     |
+| `list(input?)`               | Page of payouts                                |
+| `historyAll(input?)`         | Async iterator over all payouts                |
+| `refund(input)`              | Refund a paid invoice (signed with payout key) |
+| `calculateWithdrawal(input)` | Fees for a hypothetical withdrawal             |
+| `transferToPersonal(input)`  | Move funds to the personal balance             |
+| `transferToBusiness(input)`  | Move funds to the business balance             |
 
 ### `payout.create(input)`
 
@@ -948,16 +958,59 @@ const res = await promise;
 
 The user signal is composed with the internal timeout signal — whichever fires first wins.
 
+## Constants and types
+
+> **Don't write your own status strings.** Replace magic strings (`status === 'paid'`) with the SDK constants — `PAYMENT_STATUS.PAID`, `PAYOUT_STATUS.PAID`. When Heleket changes its statuses, the SDK gets updated, not your code.
+
+| Constant            | Type               | Guard                         | Values                         |
+| ------------------- | ------------------ | ----------------------------- | ------------------------------ |
+| `PAYMENT_STATUS`    | `TPaymentStatus`   | `isPaymentStatusGuard(value)` | `PAYMENT_STATUS_VALUES` — 14   |
+| `PAYOUT_STATUS`     | `TPayoutStatus`    | `isPayoutStatusGuard(value)`  | `PAYOUT_STATUS_VALUES` — 6     |
+| `AML_LINK_STATUS`   | `TAmlLinkStatus`   | `isAmlLinkStatusGuard(value)` | `AML_LINK_STATUS_VALUES` — 4   |
+| `TEST_WEBHOOK_TYPE` | `TTestWebhookType` | —                             | `TEST_WEBHOOK_TYPE_VALUES` — 2 |
+| `HTTP_METHOD`       | `THttpMethod`      | —                             | `GET`, `POST`                  |
+
+```ts
+import {
+  PAYMENT_STATUS,
+  PAYMENT_STATUS_VALUES,
+  isPaymentStatusGuard,
+  type TPaymentStatus,
+} from '@tsforge7/heleket-sdk';
+
+// Compare with constants, not strings:
+if (record.status === PAYMENT_STATUS.PAID) {
+  /* ... */
+}
+
+// Narrow an unknown string from a webhook or API response:
+if (isPaymentStatusGuard(record.status)) {
+  // record.status is TPaymentStatus here
+}
+
+// All known values at runtime:
+for (const s of PAYMENT_STATUS_VALUES) {
+  /* ... */
+}
+
+// Typed parameter:
+function handlePaymentStatus(status: TPaymentStatus) {
+  /* ... */
+}
+```
+
+> `isPaymentStatusGuard` checks only the values documented today. If Heleket adds a new status, it returns `false` until the SDK is updated, but the record still carries the raw string in `status`.
+
+Each status group also has `isXxxFinal(status)` and `isXxxSuccessful(status)` helpers that mirror the PHP SDK: `isPaymentStatusFinal`, `isPaymentStatusSuccessful`, `isPayoutStatusFinal`, `isPayoutStatusSuccessful`, `isAmlLinkStatusFinal`, `isAmlLinkStatusSuccessful`. Use them instead of hand-written status lists.
+
 ## Typed enums
 
-Every Heleket field that has a documented set of values is exposed as a namespace with the same shape — `KNOWN` (the readonly array), `Known` (strict union), `Value` (loose union with `(string & {})`), and `Schema` (zod schema used internally). All six give you **IDE autocomplete without locking you to a fixed set** — pass any string if Heleket adds a new value before the SDK is updated.
+`Currency`, `Network`, `CourseSource` and `PayoutPriority` are exposed as namespaces with the same shape — `KNOWN` (the readonly array), `Known` (strict union), `Value` (loose union with `(string & {})`), and `Schema` (zod schema used internally). All four give you **IDE autocomplete without locking you to a fixed set** — pass any string if Heleket adds a new value before the SDK is updated. Payment and payout statuses are plain constants, see [Constants and types](#constants-and-types).
 
 | Namespace        | Source                                                                                                                                                                | Values                                                                                             |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `Currency`       | `/payment/services` examples                                                                                                                                          | 17 — USDT, USDC, BUSD, DAI, VERSE, CGPT, BTC, ETH, BNB, TRX, LTC, BCH, DASH, DOGE, MATIC, TON, XMR |
 | `Network`        | `/payment/services` examples                                                                                                                                          | 11 — ETH, TRON, BSC, BTC, LTC, BCH, DASH, DOGE, POLYGON, TON, XMR                                  |
-| `PaymentStatus`  | [`/payment-statuses`](https://doc.heleket.com/ru/methods/payments/payment-statuses)                                                                                   | 14 — see status table above                                                                        |
-| `PayoutStatus`   | [`/payout-statuses`](https://doc.heleket.com/ru/methods/payouts/payout-statuses)                                                                                      | 6 — see status table above                                                                         |
 | `CourseSource`   | [`/creating-invoice`](https://doc.heleket.com/ru/methods/payments/creating-invoice), [`/creating-payout`](https://doc.heleket.com/ru/methods/payouts/creating-payout) | 4 — `Binance`, `BinanceP2P`, `Exmo`, `Kucoin`                                                      |
 | `PayoutPriority` | [`/creating-payout`](https://doc.heleket.com/ru/methods/payouts/creating-payout)                                                                                      | 4 — `recommended`, `economy`, `high`, `highest` (BTC, ETH, Polygon, BSC only)                      |
 
@@ -967,8 +1020,6 @@ Usage is identical across all of them:
 import {
   Currency,
   Network,
-  PaymentStatus,
-  PayoutStatus,
   CourseSource,
   PayoutPriority,
 } from '@tsforge7/heleket-sdk';
@@ -976,19 +1027,16 @@ import {
 // Runtime — schema is what the SDK applies to validate request fields:
 Currency.Schema.parse('USDT');
 Network.Schema.parse('TRON');
-PaymentStatus.Schema.parse('paid');
 
 // Types — autocomplete on known values, fallback to any string:
 const c: Currency.Value = 'USDT'; // suggests USDT, USDC, BUSD, ...
 const c2: Currency.Value = 'NEW_COIN'; // still accepted
 const c3: Currency.Known = 'USDT'; // strict — only the known union
-const s: PaymentStatus.Value = 'paid';
 const p: PayoutPriority.Value = 'recommended';
 const cs: CourseSource.Value = 'Binance';
 
 // Snapshots (runtime arrays) — handy for UI dropdowns, validation, exhaustive checks:
 Currency.KNOWN; // readonly ['USDT', 'USDC', ...]
-PaymentStatus.KNOWN; // readonly ['paid', 'paid_over', ...]
 CourseSource.KNOWN; // readonly ['Binance', 'BinanceP2P', 'Exmo', 'Kucoin']
 PayoutPriority.KNOWN; // readonly ['recommended', 'economy', 'high', 'highest']
 ```
@@ -1050,19 +1098,29 @@ namespace XxxCommand {
 
 Available commands:
 
-| Namespace                     | Path                    |
-| ----------------------------- | ----------------------- |
-| `CreatePaymentCommand`        | `POST payment`          |
-| `GetPaymentInfoCommand`       | `POST payment/info`     |
-| `ListPaymentsCommand`         | `POST payment/list`     |
-| `GetPaymentServicesCommand`   | `POST payment/services` |
-| `ResendPaymentWebhookCommand` | `POST payment/resend`   |
-| `CreateStaticWalletCommand`   | `POST wallet`           |
-| `GetBalanceCommand`           | `POST balance`          |
-| `CreatePayoutCommand`         | `POST payout`           |
-| `GetPayoutInfoCommand`        | `POST payout/info`      |
-| `ListPayoutsCommand`          | `POST payout/list`      |
-| `GetPayoutServicesCommand`    | `POST payout/services`  |
+| Namespace                     | Path                                   |
+| ----------------------------- | -------------------------------------- |
+| `CreatePaymentCommand`        | `POST payment`                         |
+| `GetPaymentInfoCommand`       | `POST payment/info`                    |
+| `ListPaymentsCommand`         | `POST payment/list`                    |
+| `GetPaymentServicesCommand`   | `POST payment/services`                |
+| `ResendPaymentWebhookCommand` | `POST payment/resend`                  |
+| `CreateStaticWalletCommand`   | `POST wallet`                          |
+| `GetBalanceCommand`           | `POST balance`                         |
+| `GetAmlLinksCommand`          | `POST payment/aml-links`               |
+| `GenerateWalletQrCommand`     | `POST wallet/qr`                       |
+| `BlockStaticWalletCommand`    | `POST wallet/block-address`            |
+| `RefundBlockedWalletCommand`  | `POST wallet/blocked-address-refund`   |
+| `TestWebhookCommand`          | `POST test-webhook/payment`, `/wallet` |
+| `GetExchangeRatesCommand`     | `GET exchange-rate/{currency}/list`    |
+| `CreatePayoutCommand`         | `POST payout`                          |
+| `GetPayoutInfoCommand`        | `POST payout/info`                     |
+| `ListPayoutsCommand`          | `POST payout/list`                     |
+| `GetPayoutServicesCommand`    | `POST payout/services`                 |
+| `RefundPaymentCommand`        | `POST payment/refund`                  |
+| `CalculateWithdrawalCommand`  | `POST payout/calculate`                |
+| `TransferToPersonalCommand`   | `POST transfer/to-personal`            |
+| `TransferToBusinessCommand`   | `POST transfer/to-business`            |
 
 ## Dependency injection — replacing internals
 
@@ -1120,7 +1178,7 @@ new HeleketClient({
 });
 ```
 
-Same approach works for `ICaseConverter` and `IEnvelopeParser`.
+Same approach works for `ICaseConverter`, `IEnvelopeParser` and `IUrlBuilder`.
 
 ## Architecture
 

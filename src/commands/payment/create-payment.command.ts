@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { getEndpointDetails, REST_API } from '../../shared/api';
+import { getEndpointDetails, HTTP_METHOD, REST_API } from '../../shared/api';
 import { CourseSource, Currency, Network, PaymentRecord } from '../common';
 
 export const CreatePaymentRequestBodySchema = z
@@ -62,7 +62,7 @@ export namespace CreatePaymentCommand {
 
   export const endpointDetails = getEndpointDetails(
     REST_API.PAYMENT.POST_CREATE,
-    'post',
+    HTTP_METHOD.POST,
     'Create a new payment invoice',
     'Creates a payment invoice that the customer can pay in crypto. Returns the invoice uuid and a hosted pay URL.',
   );

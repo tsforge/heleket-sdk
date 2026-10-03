@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { getEndpointDetails, REST_API } from '../../shared/api';
+import { getEndpointDetails, HTTP_METHOD, REST_API } from '../../shared/api';
 import { ByUuidOrOrderId } from '../common';
 
 export const ResendPaymentWebhookRequestBodySchema = ByUuidOrOrderId.Schema;
@@ -23,7 +23,7 @@ export namespace ResendPaymentWebhookCommand {
 
   export const endpointDetails = getEndpointDetails(
     REST_API.PAYMENT.POST_RESEND,
-    'post',
+    HTTP_METHOD.POST,
     'Resend the webhook notification for a payment',
     'Triggers Heleket to re-deliver the webhook for the specified payment invoice.',
   );

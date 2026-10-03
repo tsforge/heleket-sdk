@@ -1,3 +1,6 @@
+import { phpJsonEncode } from '../../common';
+import { HTTP_METHOD } from '../../shared/api';
+import type { THttpMethod } from '../../shared/api';
 import type { ICommandResponse } from '../../common';
 import {
   ACCEPT_JSON,
@@ -14,7 +17,7 @@ import type { IHttpClient, IHttpRequest, IHttpResponse } from '../http';
 import { RetryOutcomeKind } from '../retry';
 import type { IRetryPolicy, RetryOutcome } from '../retry';
 import type { ISigner } from '../signer';
-import type { UrlBuilder } from '../url';
+import type { IUrlBuilder } from '../url';
 import type {
   ICommandDescriptor,
   ICommandExecutorDeps,
@@ -33,7 +36,7 @@ export class CommandExecutor {
   private readonly retryPolicy: IRetryPolicy;
   private readonly caseConverter: ICaseConverter;
   private readonly envelopeParser: IEnvelopeParser;
-  private readonly urlBuilder: UrlBuilder;
+  private readonly urlBuilder: IUrlBuilder;
   private readonly timeoutMs: number;
 
   constructor(deps: ICommandExecutorDeps) {
@@ -60,12 +63,16 @@ export class CommandExecutor {
 
     const requestBody = this.serializeBody(inputCheck.data);
     const signature = this.signer.sign(requestBody);
-    const requestUrl = this.urlBuilder.build(command.url, options?.query);
+    const requestUrl = this.urlBuilder.build(
+      options?.path ?? command.url,
+      options?.query,
+    );
     const headers = this.buildHeaders(signature);
 
     let httpResponse: IHttpResponse;
     try {
       httpResponse = await this.sendWithRetry(
+        command.method ?? HTTP_METHOD.POST,
         requestUrl,
         requestBody,
         headers,
@@ -98,7 +105,8 @@ export class CommandExecutor {
 
   private serializeBody(input: unknown): string {
     const wireFormat = this.caseConverter.toWire(input);
-    return JSON.stringify(wireFormat);
+    const json = phpJsonEncode(wireFormat);
+    return json === '{}' ? '' : json;
   }
 
   private buildHeaders(signature: string): Record<string, string> {
@@ -111,6 +119,7 @@ export class CommandExecutor {
   }
 
   private sendWithRetry(
+    method: THttpMethod,
     url: string,
     body: string,
     headers: Record<string, string>,
@@ -124,7 +133,9 @@ export class CommandExecutor {
       signal,
     };
     const performRequest = (): Promise<IHttpResponse> =>
-      this.httpClient.post(request);
+      method === HTTP_METHOD.GET
+        ? this.httpClient.get(request)
+        : this.httpClient.post(request);
     return this.retryPolicy.execute(
       performRequest,
       CommandExecutor.isRetryable,

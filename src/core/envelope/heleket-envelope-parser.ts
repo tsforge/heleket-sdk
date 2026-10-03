@@ -20,7 +20,7 @@ export class HeleketEnvelopeParser implements IEnvelopeParser {
       return HeleketEnvelopeParser.apiError(envelope.message, envelope.errors);
     }
 
-    if (typeof envelope.state === 'number' && envelope.state !== 0) {
+    if (envelope.state !== 0) {
       return HeleketEnvelopeParser.apiError(envelope.message, envelope.errors);
     }
 

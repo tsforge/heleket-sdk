@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { getEndpointDetails, REST_API } from '../../shared/api';
+import { getEndpointDetails, HTTP_METHOD, REST_API } from '../../shared/api';
 import { AmountLike } from '../common';
 
 const BalanceEntrySchema = z
@@ -42,7 +42,7 @@ export namespace GetBalanceCommand {
 
   export const endpointDetails = getEndpointDetails(
     REST_API.BALANCE.POST_GET,
-    'post',
+    HTTP_METHOD.POST,
     'Get merchant and user balances',
     'Returns balance entries grouped by merchant and user, broken down by currency.',
   );

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { getEndpointDetails, REST_API } from '../../shared/api';
+import { getEndpointDetails, HTTP_METHOD, REST_API } from '../../shared/api';
 import { ServiceItem } from '../common';
 
 export const GetPayoutServicesRequestBodySchema = z.object({}).strict();
@@ -25,7 +25,7 @@ export namespace GetPayoutServicesCommand {
 
   export const endpointDetails = getEndpointDetails(
     REST_API.PAYOUT.POST_SERVICES,
-    'post',
+    HTTP_METHOD.POST,
     'List available payout services',
   );
 }

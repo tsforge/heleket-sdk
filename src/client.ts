@@ -16,6 +16,7 @@ import type {
   IHttpClient,
   IRetryPolicy,
   ISigner,
+  IUrlBuilder,
   RetryOptions,
 } from './core';
 import { PaymentResource, PayoutResource } from './resources';
@@ -36,6 +37,7 @@ export interface HeleketClientOptions {
   retryPolicy?: IRetryPolicy;
   caseConverter?: ICaseConverter;
   envelopeParser?: IEnvelopeParser;
+  urlBuilder?: IUrlBuilder;
   signerFactory?: SignerFactory;
 }
 
@@ -49,7 +51,7 @@ export class HeleketClient {
   private readonly retryPolicy: IRetryPolicy;
   private readonly caseConverter: ICaseConverter;
   private readonly envelopeParser: IEnvelopeParser;
-  private readonly urlBuilder: UrlBuilder;
+  private readonly urlBuilder: IUrlBuilder;
   private readonly signerFactory: SignerFactory;
 
   private paymentResource: PaymentResource | undefined;
@@ -72,7 +74,7 @@ export class HeleketClient {
       options.retryPolicy ?? HeleketClient.buildRetryPolicy(options.retry);
     this.caseConverter = options.caseConverter ?? new SnakeCaseConverter();
     this.envelopeParser = options.envelopeParser ?? new HeleketEnvelopeParser();
-    this.urlBuilder = new UrlBuilder(this.baseUrl);
+    this.urlBuilder = options.urlBuilder ?? new UrlBuilder(this.baseUrl);
     this.signerFactory =
       options.signerFactory ?? HeleketClient.defaultSignerFactory;
   }

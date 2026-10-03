@@ -1,6 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 
-import { tryParseJson } from '../common';
+import { phpJsonEncode, tryParseJson } from '../common';
 import type { ISigner } from '../core';
 
 export class WebhookVerifier {
@@ -22,7 +22,7 @@ export class WebhookVerifier {
     }
 
     const expectedSignature = this.signer.sign(
-      JSON.stringify(payloadWithoutSign),
+      phpJsonEncode(payloadWithoutSign),
     );
     return WebhookVerifier.signaturesMatch(
       expectedSignature,

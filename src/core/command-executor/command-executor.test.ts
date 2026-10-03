@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
 
 import { ERRORS } from '../../constants';
+import { HTTP_METHOD } from '../../shared/api';
 import { SnakeCaseConverter } from '../case';
 import { HeleketEnvelopeParser } from '../envelope';
 import type { IHttpClient, IHttpResponse } from '../http';
@@ -14,6 +15,8 @@ import type { ICommandDescriptor } from './interfaces';
 
 const merchantUuid = '0d8e2f8a-1234-5678-9abc-deadbeefcafe';
 const apiKey = 'test-api-key';
+const unexpectedGet = (): Promise<IHttpResponse> =>
+  Promise.reject(new Error('GET is not expected in this test'));
 
 const InputSchema = z.object({
   orderId: z.string().min(1),
@@ -47,7 +50,7 @@ const makeQueue = (responses: Array<IHttpResponse | Error>) => {
   });
   return {
     post,
-    httpClient: { post } as IHttpClient,
+    httpClient: { post, get: unexpectedGet } as IHttpClient,
   };
 };
 
@@ -212,6 +215,7 @@ describe('CommandExecutor.execute', () => {
       headers: Record<string, string>;
     }> = [];
     const httpClient: IHttpClient = {
+      get: unexpectedGet,
       post: (request) => {
         captured.push({
           url: request.url,
@@ -233,9 +237,47 @@ describe('CommandExecutor.execute', () => {
     expect(sent.headers['sign']).toBe(new Md5Signer(apiKey).sign(sent.body));
   });
 
+  test('uses GET with an empty body when the command declares method get', async () => {
+    const seen: Array<{
+      method: string;
+      body: string;
+      url: string;
+      sign: string;
+    }> = [];
+    const httpClient: IHttpClient = {
+      post: unexpectedGet,
+      get: (request) => {
+        seen.push({
+          method: HTTP_METHOD.GET,
+          body: request.body,
+          url: request.url,
+          sign: request.headers['sign'] ?? '',
+        });
+        return Promise.resolve({ status: 200, body: successBody });
+      },
+    };
+    const executor = makeExecutor(httpClient, 0);
+    const getCommand = {
+      url: 'exchange-rate',
+      method: HTTP_METHOD.GET,
+      RequestBodySchema: z.object({}),
+      ResponseSchema: OutputSchema,
+    };
+
+    await executor.execute(getCommand, {}, { path: 'exchange-rate/USD/list' });
+
+    expect(seen[0]?.method).toBe(HTTP_METHOD.GET);
+    expect(seen[0]?.body).toBe('');
+    expect(seen[0]?.url).toBe(
+      'https://api.heleket.com/v1/exchange-rate/USD/list',
+    );
+    expect(seen[0]?.sign).toBe(new Md5Signer(apiKey).sign(''));
+  });
+
   test('forwards query params to the URL via the UrlBuilder', async () => {
     const captured: string[] = [];
     const httpClient: IHttpClient = {
+      get: unexpectedGet,
       post: (request) => {
         captured.push(request.url);
         return Promise.resolve({ status: 200, body: successBody });
@@ -257,6 +299,7 @@ describe('CommandExecutor.execute', () => {
   test('forwards AbortSignal to the http client', async () => {
     const seenSignals: Array<AbortSignal | undefined> = [];
     const httpClient: IHttpClient = {
+      get: unexpectedGet,
       post: (request) => {
         seenSignals.push(request.signal);
         return Promise.resolve({ status: 200, body: successBody });
@@ -276,6 +319,7 @@ describe('CommandExecutor.execute', () => {
 
   test('re-throws non-TransportError errors from the http client', async () => {
     const httpClient: IHttpClient = {
+      get: unexpectedGet,
       post: () => Promise.reject(new RangeError('boom')),
     };
     const executor = makeExecutor(httpClient, 0);

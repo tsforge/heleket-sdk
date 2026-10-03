@@ -191,7 +191,7 @@ describe('PayoutResource.services', () => {
 
     const sent = mock.captured[0]!;
     expect(sent.url).toBe('https://api.heleket.com/v1/payout/services');
-    expect(sent.body).toBe('{}');
+    expect(sent.body).toBe('');
   });
 });
 
@@ -215,7 +215,7 @@ describe('PayoutResource.list and historyAll', () => {
     await client.payout.list({ cursor: 'abc' });
     const sent = mock.captured[0]!;
     expect(sent.url).toBe('https://api.heleket.com/v1/payout/list?cursor=abc');
-    expect(sent.body).toBe('{}');
+    expect(sent.body).toBe('');
   });
 
   test('list forwards dateFrom/dateTo in body and cursor in query', async () => {
@@ -352,5 +352,63 @@ describe('HeleketClient payout-key gating', () => {
       fetch: createFetchMock({}).fetch,
     });
     expect(client.payout).toBe(client.payout);
+  });
+});
+
+describe('PayoutResource new endpoints', () => {
+  test('refund posts to /payment/refund with is_subtract', async () => {
+    const mock = createFetchMock({ status: 200, body: successEnvelope({}) });
+    const client = makeClient(mock.fetch);
+
+    await client.payout.refund({
+      uuid: 'a7c0caec-a594-4aaa-b1c4-77d511857594',
+      address: 'TXguLRFtrAFrEDA17WuPfrxB84jVzJcNNV',
+      isSubtract: true,
+    });
+
+    const sent = mock.captured[0]!;
+    expect(sent.url).toBe('https://api.heleket.com/v1/payment/refund');
+    expect(sent.body).toBe(
+      '{"uuid":"a7c0caec-a594-4aaa-b1c4-77d511857594","address":"TXguLRFtrAFrEDA17WuPfrxB84jVzJcNNV","is_subtract":true}',
+    );
+  });
+
+  test('calculateWithdrawal defaults is_subtract to false', async () => {
+    const mock = createFetchMock({
+      status: 200,
+      body: successEnvelope({ fee: '1.00' }),
+    });
+    const client = makeClient(mock.fetch);
+
+    await client.payout.calculateWithdrawal({
+      currency: 'USDT',
+      network: 'TRON',
+      amount: '50',
+    });
+
+    const sent = mock.captured[0]!;
+    expect(sent.url).toBe('https://api.heleket.com/v1/payout/calculate');
+    expect(sent.body).toBe(
+      '{"currency":"USDT","network":"TRON","amount":"50","is_subtract":false}',
+    );
+  });
+
+  test('transferToPersonal and transferToBusiness hit their own endpoints', async () => {
+    const mock = createFetchMock([
+      { status: 200, body: successEnvelope({}) },
+      { status: 200, body: successEnvelope({}) },
+    ]);
+    const client = makeClient(mock.fetch);
+
+    await client.payout.transferToPersonal({ amount: '10', currency: 'USDT' });
+    await client.payout.transferToBusiness({ amount: '10', currency: 'USDT' });
+
+    expect(mock.captured[0]!.url).toBe(
+      'https://api.heleket.com/v1/transfer/to-personal',
+    );
+    expect(mock.captured[1]!.url).toBe(
+      'https://api.heleket.com/v1/transfer/to-business',
+    );
+    expect(mock.captured[0]!.body).toBe('{"amount":"10","currency":"USDT"}');
   });
 });

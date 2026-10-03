@@ -5,4 +5,5 @@ export const PAYOUT_ROUTES = {
   POST_INFO: `${PAYOUT_CONTROLLER}/info`,
   POST_LIST: `${PAYOUT_CONTROLLER}/list`,
   POST_SERVICES: `${PAYOUT_CONTROLLER}/services`,
+  POST_CALCULATE: `${PAYOUT_CONTROLLER}/calculate`,
 } as const;
