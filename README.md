@@ -56,6 +56,7 @@ Wire-compatible 1:1 with the official [`heleket/php-sdk`](https://github.com/Hel
 - [Public exports map](#public-exports-map)
 - [TypeScript notes](#typescript-notes)
 - [Scripts](#scripts)
+- [Contributing](#contributing)
 - [License](#license)
 
 ---
@@ -1261,6 +1262,39 @@ npm run lint:fix     # eslint . --fix
 npm run format       # prettier --write .
 npm run format:check # prettier --check .
 ```
+
+## Contributing
+
+Found a bug? Open an [Issue](https://github.com/tsforge/heleket-sdk/issues). Describe what you did, what you expected and what you got (error code, module, SDK and Node versions). Never include real API keys or transaction data in an issue.
+
+Want to propose a change? Direct pushes to the repository are not allowed. Changes are accepted through a Pull Request from a fork:
+
+1. Fork [tsforge/heleket-sdk](https://github.com/tsforge/heleket-sdk) with the "Fork" button.
+2. Clone your fork and create a branch from `main`:
+
+   ```bash
+   git clone git@github.com:<your-login>/heleket-sdk.git
+   cd heleket-sdk
+   npm install
+   git checkout -b fix/my-fix
+   ```
+
+3. Make your changes and make sure everything is green:
+
+   ```bash
+   npm run typecheck     # TypeScript
+   npm run lint          # ESLint
+   npm run format:check  # Prettier (use npm run format to fix)
+   npm test              # vitest
+   npm run build         # tsup: ESM, CJS and .d.ts
+   ```
+
+4. Add tests for new behaviour. Public methods are covered in `src/resources/*.test.ts`, the HTTP layer in `src/core/*`.
+5. Keep code comments in English.
+6. Commit with a short conventional prefix that matches the history: `feat(...)`, `fix(...)`, `chore: ...`, `feat(tests): ...`.
+7. Push the branch to your fork and open a Pull Request into `main` of `tsforge/heleket-sdk`. Describe what you changed and why. If the PR closes an issue, reference it with `Closes #N`.
+
+Releases are made by maintainers: they bump `version` in `package.json` and push a tag equal to that version (without `v`). The tag triggers publishing to npm, so contributors do not need to change the version or create tags.
 
 ## License
 

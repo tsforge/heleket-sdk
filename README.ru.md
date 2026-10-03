@@ -56,6 +56,7 @@ Wire-совместимый 1:1 с официальным [`heleket/php-sdk`](ht
 - [Карта публичных экспортов](#карта-публичных-экспортов)
 - [TypeScript](#typescript)
 - [Скрипты](#скрипты)
+- [Участие в разработке](#участие-в-разработке)
 - [Лицензия](#лицензия)
 
 ---
@@ -1263,6 +1264,39 @@ npm run lint:fix     # eslint . --fix
 npm run format       # prettier --write .
 npm run format:check # prettier --check .
 ```
+
+## Участие в разработке
+
+Нашли баг? Откройте [Issue](https://github.com/tsforge/heleket-sdk/issues). Опишите, что вы делали, что ожидали и что получили (код ошибки, модуль, версии SDK и Node). Никогда не прикладывайте к issue реальные API-ключи и данные транзакций.
+
+Хотите предложить изменение? Прямые пуши в репозиторий запрещены. Изменения принимаются через Pull Request из форка:
+
+1. Сделайте форк [tsforge/heleket-sdk](https://github.com/tsforge/heleket-sdk) кнопкой "Fork".
+2. Склонируйте свой форк и создайте ветку от `main`:
+
+   ```bash
+   git clone git@github.com:<your-login>/heleket-sdk.git
+   cd heleket-sdk
+   npm install
+   git checkout -b fix/my-fix
+   ```
+
+3. Внесите изменения и убедитесь, что всё проходит:
+
+   ```bash
+   npm run typecheck     # TypeScript
+   npm run lint          # ESLint
+   npm run format:check  # Prettier (исправить: npm run format)
+   npm test              # vitest
+   npm run build         # tsup: ESM, CJS и .d.ts
+   ```
+
+4. Добавляйте тесты на новое поведение. Публичные методы покрыты в `src/resources/*.test.ts`, HTTP-слой в `src/core/*`.
+5. Комментарии в коде пишите на английском.
+6. Коммитьте с коротким префиксом conventional commits, как в истории: `feat(...)`, `fix(...)`, `chore: ...`, `feat(tests): ...`.
+7. Отправьте ветку в свой форк и откройте Pull Request в `main` репозитория `tsforge/heleket-sdk`. Опишите, что изменили и зачем. Если PR закрывает issue, укажите `Closes #N`.
+
+Релизы делают мейнтейнеры: они меняют `version` в `package.json` и пушат тег, равный этой версии (без `v`). Тег запускает публикацию в npm, поэтому контрибьютерам менять версию или создавать теги не нужно.
 
 ## Лицензия
 
