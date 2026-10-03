@@ -1,3 +1,5 @@
+[English](./README.md) | **Русский**
+
 # heleket-sdk
 
 ![GitHub top language](https://img.shields.io/github/languages/top/tsforge/heleket-sdk)
