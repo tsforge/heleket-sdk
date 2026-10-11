@@ -5,7 +5,8 @@ export { ServiceItem } from './service-item.schema';
 export { PaymentRecord } from './payment-record.schema';
 export { PayoutRecord } from './payout-record.schema';
 export { Network } from './network';
-export { Currency } from './currency';
+export { Currency, CURRENCY, CURRENCY_VALUES } from './currency';
+export type { TCurrency } from './currency';
 export {
   PAYMENT_STATUS,
   PAYMENT_STATUS_VALUES,

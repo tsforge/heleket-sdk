@@ -1,5 +1,9 @@
 **English** | [Русский](./README.ru.md)
 
+<p align="center">
+  <img src="https://i.postimg.cc/zXqkf8cD/heleket.webp" alt="Heleket SDK for TypeScript" width="100%">
+</p>
+
 # heleket-sdk
 
 ![GitHub top language](https://img.shields.io/github/languages/top/tsforge/heleket-sdk)
@@ -267,7 +271,7 @@ The full happy path for an online checkout: customer hits "Pay", you redirect to
 
 ```ts
 import express from 'express';
-import { HeleketClient, PAYMENT_STATUS } from '@tsforge7/heleket-sdk';
+import { HeleketClient, PAYMENT_STATUS, CURRENCY } from '@tsforge7/heleket-sdk';
 
 const heleket = new HeleketClient({
   merchantUuid: process.env.HELEKET_MERCHANT_UUID!,
@@ -294,7 +298,12 @@ app.post('/checkout', async (req, res) => {
 
   const created = await heleket.payment.create({
     amount: amountUsd,
-    currency: 'USD',
+    // Priced in USD, paid in USDT: per the docs "the user will pay in toCurrency",
+    // so the coin is pinned, not chosen by the payer. The network stays free — USDT
+    // has several, and we don't pass `network`.
+    // https://doc.heleket.com/ru/methods/payments/creating-invoice
+    currency: CURRENCY.USD,
+    toCurrency: CURRENCY.USDT,
     orderId, // your own id — used everywhere below
     urlCallback: 'https://your.app/heleket/webhook',
     urlReturn: 'https://your.app/orders/' + orderId,
@@ -1036,18 +1045,21 @@ Each status group also has `isXxxFinal(status)` and `isXxxSuccessful(status)` he
 
 `Currency`, `Network`, `CourseSource` and `PayoutPriority` are exposed as namespaces with the same shape — `KNOWN` (the readonly array), `Known` (strict union), `Value` (loose union with `(string & {})`), and `Schema` (zod schema used internally). All four give you **IDE autocomplete without locking you to a fixed set** — pass any string if Heleket adds a new value before the SDK is updated. Payment and payout statuses are plain constants, see [Constants and types](#constants-and-types).
 
-| Namespace        | Source                                                                                                                                                                | Values                                                                                             |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `Currency`       | `/payment/services` examples                                                                                                                                          | 17 — USDT, USDC, BUSD, DAI, VERSE, CGPT, BTC, ETH, BNB, TRX, LTC, BCH, DASH, DOGE, MATIC, TON, XMR |
-| `Network`        | `/payment/services` examples                                                                                                                                          | 11 — ETH, TRON, BSC, BTC, LTC, BCH, DASH, DOGE, POLYGON, TON, XMR                                  |
-| `CourseSource`   | [`/creating-invoice`](https://doc.heleket.com/ru/methods/payments/creating-invoice), [`/creating-payout`](https://doc.heleket.com/ru/methods/payouts/creating-payout) | 4 — `Binance`, `BinanceP2P`, `Exmo`, `Kucoin`                                                      |
-| `PayoutPriority` | [`/creating-payout`](https://doc.heleket.com/ru/methods/payouts/creating-payout)                                                                                      | 4 — `recommended`, `economy`, `high`, `highest` (BTC, ETH, Polygon, BSC only)                      |
+`Currency` additionally exposes a flat `CURRENCY` object (`CURRENCY.USDT`, `CURRENCY.USD`, ...), the same shape as `PAYMENT_STATUS`, for picking a value by property instead of typing the string.
+
+| Namespace        | Source                                                                                                                                                                | Values                                                                                                  |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `Currency`       | `/payment/services` examples, plus `USD` for fiat-priced invoices                                                                                                     | 18 — USDT, USDC, BUSD, DAI, VERSE, CGPT, BTC, ETH, BNB, TRX, LTC, BCH, DASH, DOGE, MATIC, TON, XMR, USD |
+| `Network`        | `/payment/services` examples                                                                                                                                          | 11 — ETH, TRON, BSC, BTC, LTC, BCH, DASH, DOGE, POLYGON, TON, XMR                                       |
+| `CourseSource`   | [`/creating-invoice`](https://doc.heleket.com/ru/methods/payments/creating-invoice), [`/creating-payout`](https://doc.heleket.com/ru/methods/payouts/creating-payout) | 4 — `Binance`, `BinanceP2P`, `Exmo`, `Kucoin`                                                           |
+| `PayoutPriority` | [`/creating-payout`](https://doc.heleket.com/ru/methods/payouts/creating-payout)                                                                                      | 4 — `recommended`, `economy`, `high`, `highest` (BTC, ETH, Polygon, BSC only)                           |
 
 Usage is identical across all of them:
 
 ```ts
 import {
   Currency,
+  CURRENCY,
   Network,
   CourseSource,
   PayoutPriority,
@@ -1064,8 +1076,12 @@ const c3: Currency.Known = 'USDT'; // strict — only the known union
 const p: PayoutPriority.Value = 'recommended';
 const cs: CourseSource.Value = 'Binance';
 
+// Or pick a value as an object property instead of typing the string:
+const c4 = CURRENCY.USDT; // 'USDT'
+const c5 = CURRENCY.USD; // 'USD' — fiat, for invoices priced in USD
+
 // Snapshots (runtime arrays) — handy for UI dropdowns, validation, exhaustive checks:
-Currency.KNOWN; // readonly ['USDT', 'USDC', ...]
+Currency.KNOWN; // readonly ['USDT', 'USDC', ..., 'USD']
 CourseSource.KNOWN; // readonly ['Binance', 'BinanceP2P', 'Exmo', 'Kucoin']
 PayoutPriority.KNOWN; // readonly ['recommended', 'economy', 'high', 'highest']
 ```
@@ -1260,12 +1276,16 @@ src/
     case/                   → ICaseConverter, SnakeCaseConverter
     envelope/               → IEnvelopeParser, EnvelopeResult, EnvelopeResultKind,
                               HeleketEnvelopeParser
-    url/                    → UrlBuilder
+    url/                    → UrlBuilder, IUrlBuilder
     command-executor/       → CommandExecutor, ICommandDescriptor, IExecuteOptions,
                               ICommandExecutorDeps
   commands/
     common/                 → AmountLike, ByUuidOrOrderId, Paginate, ServiceItem,
-                              PaymentRecord, PayoutRecord, Network, Currency (all namespaces)
+                              PaymentRecord, PayoutRecord, Network, Currency, CourseSource,
+                              PayoutPriority (namespaces: KNOWN/Known/Value/Schema),
+                              CURRENCY, PAYMENT_STATUS, PAYOUT_STATUS, AML_LINK_STATUS,
+                              TEST_WEBHOOK_TYPE (flat constants + isXxxGuard/isXxxFinal/
+                              isXxxSuccessful helpers for the status groups)
     payment/                → CreatePaymentCommand, GetPaymentInfoCommand, ListPaymentsCommand,
                               GetPaymentServicesCommand, ResendPaymentWebhookCommand,
                               CreateStaticWalletCommand, GetBalanceCommand,
@@ -1280,7 +1300,7 @@ src/
                               IEndpointDetails, controllers (PAYMENT_ROUTES, PAYOUT_ROUTES, ...)
   constants/                → ERRORS, ErrorKey, ErrorEntry, HEADERS,
                               CONTENT_TYPE_JSON
-  common/                   → ICommandResponse, Json, sleep, tryParseJson
+  common/                   → ICommandResponse, Json, sleep, tryParseJson, phpJsonEncode
 ```
 
 Everything listed above is re-exported from the package root, except `ACCEPT_JSON`.
